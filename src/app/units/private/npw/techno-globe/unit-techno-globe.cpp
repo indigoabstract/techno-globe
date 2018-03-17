@@ -4,7 +4,6 @@
 
 #ifdef UNIT_TECHNO_GLOBE
 
-#include "rapidcsv.hpp"
 #include "media/res-ld/res-ld.hpp"
 #include "com/ux/ux-com.hpp"
 #include "com/ux/ux-camera.hpp"
@@ -26,8 +25,13 @@
 #include <glm/glm.hpp>
 #include <queue>
 
+//#define USE_GLOBE_DOT_BORDER_MESHES
+//#define BUILD_RESOURCES
 
-//#include "hough.cpp"
+#if defined BUILD_RESOURCES
+#include "rapidcsv.hpp"
+#endif
+
 
 namespace techno_globe_ns
 {
@@ -912,6 +916,9 @@ namespace techno_globe_ns
    };
 
 
+   const std::string RES_MAP_NAME = "res-file";
+   const float TEX_SCALE = 0.25f;
+
    struct globe_dot_vx
    {
       glm::vec3 pos;
@@ -934,406 +941,64 @@ namespace techno_globe_ns
    };
 
 
-   //#define USE_GLOBE_DOT_BORDER_MESHES
-#define BUILD_RESOURCES
-
-   class main_page : public ux_page
+   // this class builds the compacted resources loaded at runtime from their original/master versions,
+   // which are high resolution, but impractical to use at runtime
+   class master_resource_builder
    {
    public:
-      main_page(shared_ptr<ux_page_tab> iparent) : ux_page(iparent) {}
-
-      virtual void init()
+      master_resource_builder(std::shared_ptr<ux_camera> i_ux_cam)
       {
-         ux_page::init();
-
-         globe_radius = 100.f;
-         u_v3_light_dir = -glm::vec3(-1.f, 0.f, 0.5f);
-         globe_tex_width = 0;
-         globe_tex_height = 0;
-
-         // globe dots
-         {
-            globe_dots_vxo = std::make_shared<gfx_vxo>(vx_info("a_v3_position, a_v3_normal, a_v2_tex_coord"));
-            auto& dots_vxo = *globe_dots_vxo;
-
-            dots_vxo[MP_SHADER_NAME] = "globe-dot";
-            //dots_vxo["u_v3_light_dir"] = u_v3_light_dir;
-            dots_vxo[MP_CULL_FRONT] = false;
-            dots_vxo[MP_CULL_BACK] = false;
-            dots_vxo[MP_DEPTH_WRITE] = false;
-            dots_vxo[MP_DEPTH_TEST] = false;
-            dots_vxo[MP_BLENDING] = MV_ALPHA;
-            //dots_vxo.render_method = GLPT_POINTS;
-         }
-
-         // globe borders
-         {
-            globe_borders_vxo = std::make_shared<gfx_vxo>(vx_info("a_v3_position, a_v3_normal, a_v2_tex_coord"));
-            auto& borders_vxo = *globe_borders_vxo;
-
-            borders_vxo[MP_SHADER_NAME] = "globe-border";
-            //dots_vxo["u_v3_light_dir"] = u_v3_light_dir;
-            borders_vxo[MP_CULL_FRONT] = false;
-            borders_vxo[MP_CULL_BACK] = false;
-            borders_vxo[MP_DEPTH_WRITE] = false;
-            borders_vxo[MP_DEPTH_TEST] = false;
-            borders_vxo[MP_BLENDING] = MV_ALPHA;
-            //dots_vxo.render_method = GLPT_POINTS;
-         }
-
-         // globe vertex object
-         {
-            globe_vxo = std::make_shared<gfx_vpc_ring_sphere>();
-            auto& globe = *globe_vxo;
-
-            globe.get_vx_info().uses_tangent_basis = false;
-            //globe.render_method = GLPT_LINES;
-            globe.set_dimensions(globe_radius, 128);
-            globe.position = glm::vec3(0.f, 0.f, 0.f);
-            globe[MP_SHADER_NAME] = "3d-globe-outline";
-            globe["u_v3_light_dir"] = u_v3_light_dir;
-            globe[MP_CULL_FRONT] = false;
-            globe[MP_CULL_BACK] = false;
-            globe[MP_DEPTH_WRITE] = true;
-            globe[MP_DEPTH_TEST] = false;
-            globe[MP_BLENDING] = MV_ALPHA;
-            //globe[MP_WIREFRAME_MODE] = MV_WF_OVERLAY;
-         }
-
-         load_globe_src_data();
-
-         // globe texture
-         {
-            gfx_tex_params prm;
-            auto& globe = *globe_vxo;
-
-            prm.wrap_s = prm.wrap_t = gfx_tex_params::e_twm_clamp_to_edge;
-            prm.max_anisotropy = 16.f;
-            prm.min_filter = gfx_tex_params::e_tf_linear_mipmap_linear;
-            prm.mag_filter = gfx_tex_params::e_tf_linear;
-            prm.gen_mipmaps = true;
-
-            globe_tex = gfx::tex::new_tex_2d(gfx_tex::gen_id(), globe_tex_width, globe_tex_height, &prm);
-            globe["u_s2d_tex"] = globe_tex->get_name();
-         }
-
-         build_globe_data();
-
-         res_file = pfm_file::get_inst("city-coord");
-
-
-         t = 0;
-         free_cam = std::make_shared<free_camera>(get_unit());
-         persp_cam = gfx_camera::new_inst();
-         persp_cam->camera_id = "default";
-         persp_cam->rendering_priority = 0;
-         persp_cam->near_clip_distance = 0.1f;
-         persp_cam->far_clip_distance = 50000.f;
-         persp_cam->fov_y_deg = 60.f;
-         persp_cam->clear_color = true;
-         persp_cam->clear_color_value = gfx_color::colors::black;
-         persp_cam->clear_depth = true;
-         persp_cam->position = glm::vec3(0.f, 0.f, 250.f);
-         free_cam->persp_cam = persp_cam;
-         free_cam->mw_speed_factor = 1.f;
-
-         {
-            skybox = std::make_shared<gfx_box>();
-            gfx_box& skb = *skybox;
-            float s = persp_cam->far_clip_distance * 0.5f;
-
-            skb.set_dimensions(s, s, s);
-            skb[MP_SHADER_NAME] = "sky-box";
-            skb["u_scm_skybox"] = "skybx";
-            skb[MP_CULL_BACK] = false;
-            skb[MP_CULL_FRONT] = true;
-         }
-
-         auto scene = get_unit()->gfx_scene_inst;
-
-         scene->attach(persp_cam);
-         scene->attach(skybox);
-
-#if defined USE_GLOBE_DOT_BORDER_MESHES
-
-         scene->attach(globe_dots_vxo);
-         scene->attach(globe_borders_vxo);
-
-#endif
-
-         scene->attach(globe_vxo);
-         //globe_vxo->visible = false;
-
-         if (map_quad && globe_tex_quad)
-         {
-            scene->attach(map_quad);
-            scene->attach(globe_tex_quad);
-
-            map_quad->visible = false;
-            globe_tex_quad->visible = false;
-         }
-
-         cam_end_pos = glm::vec3(-100.f, 0.f, -200.f) * 0.75f;
-         cam_start_pos = cam_end_pos * 3.2f;
-         intro_duration = 5;
-         reset_cam_pos();
-
-         hot_spot_connex = std::make_shared<hot_spot_connector>(globe_vxo, globe_radius);
-         set_random_hot_spots();
-
-         gfx_util::check_gfx_error();
+         ux_cam = i_ux_cam;
       }
 
-      virtual void receive(shared_ptr<iadp> idp)
-      {
-         free_cam->update_input(idp);
-
-         if (!idp->is_processed())
-         {
-            if (idp->is_type(key_evt::KEYEVT_EVT_TYPE))
-            {
-               shared_ptr<key_evt> ke = key_evt::as_key_evt(idp);
-
-               if (ke->is_pressed())
-               {
-                  bool isAction = true;
-
-                  switch (ke->get_key())
-                  {
-                  case KEY_M:
-                  {
-                     if (map_quad)
-                     {
-                        map_quad->visible = !map_quad->visible;
-                     }
-
-                     break;
-                  }
-
-                  case KEY_N:
-                  {
-                     set_random_hot_spots();
-                     break;
-                  }
-
-                  case KEY_G:
-                  {
-                     if (globe_tex_quad)
-                     {
-                        globe_tex_quad->visible = !globe_tex_quad->visible;
-                     }
-
-                     break;
-                  }
-
-                  case KEY_R:
-                  {
-                     hot_spot_connex->restart_animation();
-                     break;
-                  }
-
-                  case KEY_T:
-                  {
-                     start_intro_anim();
-                     break;
-                  }
-
-                  case KEY_Y:
-                  {
-                     reset_cam_pos();
-                     break;
-                  }
-
-                  default:
-                     isAction = false;
-                  }
-
-                  if (isAction)
-                  {
-                     ke->process();
-                  }
-               }
-            }
-         }
-
-         ux_page::receive(idp);
-      }
-
-      virtual void update_state()
-      {
-         ux_page::update_state();
-
-         globe_vxo->orientation = glm::quat(glm::vec3(0, t, 0));
-         globe_dots_vxo->orientation = globe_vxo->orientation;
-         globe_borders_vxo->orientation = globe_vxo->orientation;
-         t += 0.001f;
-
-         if (cam_slider.is_enabled())
-         {
-            cam_slider.update();
-
-            double sv = cam_slider.get_value();
-            double v = sv;
-            double N = 20.f;
-            double w = 1.f;
-
-            v = 1.f - (1.f - v) * (1.f - v);
-            v = 1.f - (1.f - v) * (1.f - v);
-            v = ((v * (N - 1)) + w) / N;
-            //v = glm::sqrt(v);
-            persp_cam->position = glm::mix(cam_start_pos, cam_end_pos, v);
-         }
-
-         free_cam->update();
-         skybox->position = persp_cam->position;
-         hot_spot_connex->update();
-
-         //persp_cam->draw_axes(globe_vxo->position, 5 * globe_radius, 1);
-
-         gfx_util::check_gfx_error();
-      }
-
-      virtual void update_view(shared_ptr<ux_camera> g)
-      {
-         ux_page::update_view(g);
-      }
-
-      void set_random_hot_spots()
-      {
-         RNG rng;
-         int hot_spot_chain_list_length = 4 + rng.nextInt(4);
-         std::vector<glm::vec2> hs_list;
-         int list_size = globe_coords.size();
-         int elem_size = sizeof(double);
-
-         for (int k = 0; k < hot_spot_chain_list_length; k++)
-         {
-            int elem_idx = rng.nextInt(list_size);
-            globe_coord& coord = globe_coords[elem_idx];
-            glm::vec2 lat_lng(coord.lat, coord.lng);
-
-            hs_list.push_back(lat_lng);
-         }
-
-         hs_list =
-         {
-            glm::vec2(44.4333718, 26.09994665), glm::vec2(51.49999473, -0.116721844), glm::vec2(40.74997906,-73.98001693),
-            glm::vec2(37.74000775,-122.4599777), glm::vec2(21.30687644,-157.8579979), glm::vec2(37.5663491,126.999731),
-            glm::vec2(1.293033466,103.8558207), glm::vec2(30.04996035,31.24996822), glm::vec2(-26.17004474,28.03000972),
-            glm::vec2(-22.92502317,-43.22502079), glm::vec2(-33.92001097,151.1851798)
-         };
-         hot_spot_connex->set_hot_spots(hs_list);
-         hot_spot_connex->show();
-         hot_spot_connex->restart_animation();
-      }
-
-      void start_intro_anim()
-      {
-         hot_spot_connex->restart_animation();
-         cam_slider.start(intro_duration);
-         reset_cam_pos();
-      }
-
-      void reset_cam_pos()
-      {
-         persp_cam->position = cam_start_pos;
-         free_cam->look_at_dir = glm::normalize(-persp_cam->position());
-         free_cam->up_dir = glm::vec3(0.0f, 1.0f, 0.0f);
-         free_cam->target_ref_point = globe_vxo->position;
-      }
-
-      void load_resources()
-      {
-         res_file = pfm_file::get_inst("res-file");
-         res_rw = rw_file_sequence::new_inst(res_file);
-
-         res_file->io.open("rb");
-         uint32 globe_coords_pos = res_rw->r.read_uint32();
-         uint32 border_dots_pos = res_rw->r.read_uint32();
-         uint32 globe_dots_pos = res_rw->r.read_uint32();
-
-         res_rw->set_read_position(globe_coords_pos);
-         uint32 globe_coords_count = res_rw->r.read_uint32();
-
-         globe_coords.resize(globe_coords_count);
-         res_rw->r.read_real32((float*)globe_coords.data(), globe_coords_count * 2, 0);
-
-         res_rw->set_read_position(border_dots_pos);
-         uint32 border_dots_count = res_rw->r.read_uint32();
-
-         border_dots.resize(border_dots_count);
-         res_rw->r.read_uint16((uint16*)border_dots.data(), border_dots_count * 2, 0);
-
-         res_rw->set_read_position(globe_dots_pos);
-         uint32 globe_dots_count = res_rw->r.read_uint32();
-
-         globe_dots.resize(globe_dots_count);
-         res_rw->r.read_uint16((uint16*)globe_dots.data(), globe_dots_count * 2, 0);
-
-         res_file->io.close();
-
-         globe_tex_width = 4096;
-         globe_tex_height = globe_tex_width / 2;
-      }
-
-      void load_globe_src_data()
-      {
 #if defined BUILD_RESOURCES
 
-         {
-            // fill latitude/longitude binary data
-            auto csv_path = pfm::filesystem::get_path("simplemaps-worldcities-basic.csv");
-            auto res_path = mws_util::path::get_directory_from_path(csv_path);
-            std::string res_file_path = res_path + "/res-file";
-            res_file = pfm_file::get_inst(res_file_path);
-            res_rw = rw_file_sequence::new_inst(res_file);
+      void build_resources()
+      {
+         build_res_step_0();
+         build_res_step_1();
+         build_res_step_2();
+         save_resources();
+      }
 
-            rapidcsv::Document doc(csv_path);
-
-            std::vector<std::string> city = doc.GetColumn<std::string>("city_ascii");
-            std::vector<float> lat = doc.GetColumn<float>("lat");
-            std::vector<float> lng = doc.GetColumn<float>("lng");
-            int csv_col_count = lat.size();
-            uint32 globe_coords_pos = 3 * sizeof(uint32);
-            uint32 border_dots_pos = 0;
-            uint32 globe_dots_pos = 0;
-
-            res_file->io.open("wb");
-
-            res_rw->w.write_uint32(globe_coords_pos);
-            res_rw->w.write_uint32(border_dots_pos);
-            res_rw->w.write_uint32(globe_dots_pos);
-
-            for (int k = 0; k < csv_col_count; k++)
-            {
-               res_rw->w.write_real32(lat[k]);
-               res_rw->w.write_real32(lng[k]);
-            }
-
-            border_dots_pos = res_rw->get_write_position();
-            res_rw->set_write_position(sizeof(uint32));
-            res_rw->w.write_uint32(border_dots_pos);
-            res_rw->set_write_position(border_dots_pos);
-         }
-
+      void build_res_step_0()
+      {
+         // borders and continental dots will be synthesized from this map
          globe_src_img = res_ld::inst()->load_image("continents.png");
          globe_tex_width = globe_src_img->width;
          globe_tex_height = globe_src_img->height;
-
-#else
-
-         load_resources();
-
-#endif
       }
 
-      void build_globe_data()
+      void build_res_step_1()
       {
+         rgba_32_fmt zero = { 0 };
+         rgba_buffer = std::vector<rgba_32_fmt>(globe_tex_width * globe_tex_height, zero);
+         int threshold = 10;
 
-         int tex_width = globe_src_img->width;// 1024;
-         int tex_height = globe_src_img->height;
-         float tex_scale = 1.f;
-         //float tex_scale = 1024.f / tex_width;
+         for (int k = 0; k < globe_tex_width * globe_tex_height; k++)
+         {
+            uint8 r = *(globe_src_img->data + k);
+            rgba_buffer[k].r = 0;
+            rgba_buffer[k].g = (r > threshold) ? 255 : 0;
+            rgba_buffer[k].b = 0;
+            rgba_buffer[k].a = 0;
+         }
+
+         detect_land_borders(rgba_buffer, globe_tex_width, globe_tex_height);
+         build_globe_dots(rgba_buffer, globe_tex_width, globe_tex_height);
+         build_globe_borders(rgba_buffer, globe_tex_width, globe_tex_height);
+      }
+
+      void build_res_step_2()
+      {
+         for (int k = 0; k < globe_tex_width * globe_tex_height; k++)
+         {
+            rgba_buffer[k].g = 0;
+         }
+
+         int tex_width = globe_tex_width;
+         int tex_height = globe_tex_height;
+         //float TEX_SCALE = 1024.f / tex_width;
          gfx_tex_params prm;
 
          prm.wrap_s = prm.wrap_t = gfx_tex_params::e_twm_clamp_to_edge;
@@ -1344,108 +1009,20 @@ namespace techno_globe_ns
          prm.mag_filter = gfx_tex_params::e_tf_nearest;
          prm.gen_mipmaps = false;
 
-         rt_inst = gfx::rt::new_rt();
-         rt_inst->set_color_attachment(globe_tex);
-
          {
             map_tex = gfx::tex::new_tex_2d(gfx_tex::gen_id(), tex_width, tex_height, &prm);
             map_quad = std::make_shared<gfx_quad_2d>();
             gfx_quad_2d& mq = *map_quad;
 
             mq.set_dimensions(1, 1);
-            mq.set_scale(tex_width * tex_scale, tex_height * tex_scale);
+            mq.set_scale(tex_width * TEX_SCALE, tex_height * TEX_SCALE);
             mq.set_translation(20, 20.f);
             //mq[MP_CULL_FRONT] = false;
             //mq[MP_CULL_BACK] = false;
             //mq[MP_DEPTH_TEST] = false;
             mq[MP_SHADER_NAME] = "basic_tex";
             mq["u_s2d_tex"] = map_tex->get_name();
-            mq.camera_id_list.push_back(get_unit()->ux_cam->camera_id());
-         }
-
-         {
-            globe_tex_quad = std::make_shared<gfx_quad_2d>();
-            gfx_quad_2d& mq = *globe_tex_quad;
-
-            mq.set_dimensions(1, 1);
-            mq.set_scale(tex_width * tex_scale, tex_height * tex_scale);
-            mq.set_translation(20, 20.f);
-            mq[MP_BLENDING] = MV_ALPHA;
-            //mq[MP_CULL_BACK] = false;
-            //mq[MP_DEPTH_TEST] = false;
-            mq[MP_SHADER_NAME] = "basic_tex";
-            mq["u_s2d_tex"] = globe_tex->get_name();
-            mq.camera_id_list.push_back(get_unit()->ux_cam->camera_id());
-         }
-
-         rgba_32_fmt zero = { 0 };
-         std::vector<rgba_32_fmt> rgba_buffer(tex_width * tex_height, zero);
-         int threshold = 10;
-
-         for (int k = 0; k < tex_width * tex_height; k++)
-         {
-            uint8 r = *(globe_src_img->data + k);
-            rgba_buffer[k].r = 0;
-            rgba_buffer[k].g = (r > threshold) ? 255 : 0;
-            rgba_buffer[k].b = 0;
-            rgba_buffer[k].a = 0;
-         }
-
-         detect_land_borders(rgba_buffer, tex_width, tex_height);
-         build_globe_dots(rgba_buffer, tex_width, tex_height);
-         build_globe_borders(rgba_buffer, tex_width, tex_height);
-
-#if 0
-         // create latitude/longitude binary file
-         auto csv_path = pfm::filesystem::get_path("simplemaps-worldcities-basic.csv");
-         auto res_path = mws_util::path::get_directory_from_path(csv_path);
-         std::string coord_file_path = res_path + "/city-coord";
-         res_file = pfm_file::get_inst(coord_file_path);
-
-         rapidcsv::Document doc(csv_path);
-
-         std::vector<std::string> city = doc.GetColumn<std::string>("city_ascii");
-         std::vector<float> lat = doc.GetColumn<float>("lat");
-         std::vector<float> lng = doc.GetColumn<float>("lng");
-         int csv_col_count = lat.size();
-
-
-         {
-            auto coord_rw = rw_file_sequence::new_inst(res_file);
-
-            res_file->io.open("wb");
-
-            for (int k = 0; k < csv_col_count; k++)
-            {
-               coord_rw->w.write_real32(lat[k]);
-               coord_rw->w.write_real32(lng[k]);
-            }
-         }
-#endif
-
-#if !defined USE_GLOBE_DOT_BORDER_MESHES
-
-         gfx::rt::set_current_render_target(rt_inst);
-
-         shared_ptr<gfx_state> gl_st = gfx::get_gfx_state();
-         decl_scgfxpl(plist)
-         {
-            { gl::COLOR_CLEAR_VALUE, 0.f, 1.f, 1.f, 0.025f }, { gl::CLEAR_MASK, gl::COLOR_BUFFER_BIT_GL | gl::DEPTH_BUFFER_BIT_GL }, {},
-         };
-         gl_st->set_state(plist);
-
-         globe_dots_vxo->render_mesh(get_unit()->ux_cam);
-         globe_borders_vxo->render_mesh(get_unit()->ux_cam);
-         //get_unit()->ux_cam->draw_axes(glm::vec3(20, 20, 0), 500, 5);
-         get_unit()->ux_cam->update_camera_state();
-
-         gfx::rt::set_current_render_target(nullptr);
-
-#endif
-
-         for (int k = 0; k < tex_width * tex_height; k++)
-         {
-            rgba_buffer[k].g = 0;
+            mq.camera_id_list.push_back(ux_cam->camera_id());
          }
 
          map_tex->update(0, (const char*)rgba_buffer.data());
@@ -1469,6 +1046,10 @@ namespace techno_globe_ns
                {
                   if (b[ml].g == 0 || b[mr].g == 0 || b[tm].g == 0 || b[bm].g == 0)
                   {
+                     globe_map_dot d;
+
+                     d.x = l;
+                     d.y = k;
                      b[mm].r = 255;
                      //b[idx].g = 0;
                   }
@@ -1589,6 +1170,11 @@ namespace techno_globe_ns
                   point_count++;
 
                   globe_dot_vx dot;
+                  uint16 px = uint16(x_offset + x_start);
+                  uint16 py = uint16((height - 1.f) * (1.f - p));
+                  globe_map_dot md = { px, py };
+
+                  globe_dots.push_back(md);
 
 #if defined USE_GLOBE_DOT_BORDER_MESHES
 
@@ -1602,7 +1188,7 @@ namespace techno_globe_ns
 
 #else
 
-                  glm::vec3 pos(x_offset + x_start, (height - 1.f) * (1.f - p), 0.f);
+                  glm::vec3 pos(px, py, 0.f);
                   glm::vec3 left(-1, 0, 0);
                   glm::vec3 up(0, 1, 0);
 
@@ -1637,8 +1223,8 @@ namespace techno_globe_ns
 
          int vx_size = sizeof(globe_dot_vx);
 
-         gfx_vxo_util::set_mesh_data((const uint8*)&globe_dots_vertices[0], globe_dots_vertices.size() * vx_size,
-            &globe_dots_indices[0], globe_dots_indices.size() * sizeof(uint32), globe_dots_vxo);
+         //gfx_vxo_util::set_mesh_data((const uint8*)&globe_dots_vertices[0], globe_dots_vertices.size() * vx_size,
+         //   &globe_dots_indices[0], globe_dots_indices.size() * sizeof(uint32), globe_dots_vxo);
 
          vprint("--- total dot points: %d total vertices: %d ---\n", point_count, point_count * 4);
       }
@@ -1689,6 +1275,11 @@ namespace techno_globe_ns
                if (rgba_buffer[idx].r > 0)
                {
                   globe_dot_vx dot;
+                  uint16 px = uint16(l);
+                  uint16 py = uint16(height - 1 - k);
+                  globe_map_dot md = { px, py };
+
+                  border_dots.push_back(md);
 
 #if defined USE_GLOBE_DOT_BORDER_MESHES
 
@@ -1733,19 +1324,82 @@ namespace techno_globe_ns
 
          int vx_size = sizeof(globe_dot_vx);
 
-         gfx_vxo_util::set_mesh_data((const uint8*)&globe_borders_vertices[0], globe_borders_vertices.size() * vx_size,
-            &globe_borders_indices[0], globe_borders_indices.size() * sizeof(uint32), globe_borders_vxo);
+         //gfx_vxo_util::set_mesh_data((const uint8*)&globe_borders_vertices[0], globe_borders_vertices.size() * vx_size,
+         //   &globe_borders_indices[0], globe_borders_indices.size() * sizeof(uint32), globe_borders_vxo);
 
          vprint("--- total red points: %d total vertices: %d ---\n", point_count, point_count * 4);
       }
 
-      std::shared_ptr<gfx_box> skybox;
+      // counterpart is 'load_resources' in runtime_resource_builder
+      void save_resources()
+      {
+         // fill latitude/longitude binary data
+         auto csv_path = pfm::filesystem::get_path("simplemaps-worldcities-basic.csv");
+         auto drtf_path = pfm::filesystem::get_path("dummy-runtime-file");
+         auto res_path = mws_util::path::get_directory_from_path(drtf_path);
+         std::string res_file_path = res_path + "/" + RES_MAP_NAME;
+         res_file = pfm_file::get_inst(res_file_path);
+         res_rw = rw_file_sequence::new_inst(res_file);
 
-      int globe_tex_width;
-      int globe_tex_height;
-      std::shared_ptr<gfx_vpc_ring_sphere> globe_vxo;
-      std::shared_ptr<gfx_tex> globe_tex;
-      float globe_radius;
+         rapidcsv::Document doc(csv_path);
+
+         std::vector<std::string> city = doc.GetColumn<std::string>("city_ascii");
+         std::vector<float> lat = doc.GetColumn<float>("lat");
+         std::vector<float> lng = doc.GetColumn<float>("lng");
+         int globe_coords_count = lat.size();
+
+
+         // start writing
+         uint32 globe_coords_pos = 4 * sizeof(uint32);
+         uint32 border_dots_pos = 0;
+         uint32 globe_dots_pos = 0;
+
+         res_file->io.open("wb");
+
+         res_rw->w.write_uint32(globe_coords_pos);
+         res_rw->w.write_uint32(border_dots_pos);
+         res_rw->w.write_uint32(globe_dots_pos);
+         res_rw->w.write_uint32(globe_tex_width);
+
+         // globe_coords
+         res_rw->w.write_uint32(globe_coords_count);
+
+         for (int k = 0; k < globe_coords_count; k++)
+         {
+            res_rw->w.write_real32(lat[k]);
+            res_rw->w.write_real32(lng[k]);
+         }
+
+         // border_dots
+         border_dots_pos = (uint32)res_rw->get_write_position();
+         res_rw->seek(sizeof(uint32));
+         res_rw->w.write_uint32(border_dots_pos);
+         res_rw->seek(border_dots_pos);
+
+         res_rw->w.write_uint32(border_dots.size());
+         res_rw->w.write_uint16((uint16*)border_dots.data(), border_dots.size() * 2, 0);
+
+         // globe_dots
+         globe_dots_pos = (uint32)res_rw->get_write_position();
+         res_rw->seek(2 * sizeof(uint32));
+         res_rw->w.write_uint32(globe_dots_pos);
+         res_rw->seek(globe_dots_pos);
+
+         res_rw->w.write_uint32(globe_dots.size());
+         res_rw->w.write_uint16((uint16*)globe_dots.data(), globe_dots.size() * 2, 0);
+
+         res_rw = nullptr;
+         res_file->io.close();
+         // finished writing
+      }
+
+#endif
+
+      std::shared_ptr<pfm_file> res_file;
+      std::shared_ptr<rw_file_sequence> res_rw;
+      std::vector<globe_coord> globe_coords;
+      std::vector<globe_map_dot> border_dots;
+      std::vector<globe_map_dot> globe_dots;
 
       std::shared_ptr<gfx_vxo> globe_dots_vxo;
       std::vector<globe_dot_vx> globe_dots_vertices;
@@ -1755,8 +1409,613 @@ namespace techno_globe_ns
       std::vector<globe_dot_vx> globe_borders_vertices;
       std::vector<uint32> globe_borders_indices;
 
-      std::shared_ptr<gfx_camera> persp_cam;
+      int globe_tex_width;
+      int globe_tex_height;
+      std::shared_ptr<raw_img_data> globe_src_img;
+      std::vector<rgba_32_fmt> rgba_buffer;
+      std::shared_ptr<gfx_tex> map_tex;
+      std::shared_ptr<gfx_quad_2d> map_quad;
+      std::shared_ptr<ux_camera> ux_cam;
+   };
+
+
+   // this class will load the runtime resources from a file and build any objects using them (like the globe mesh/texture)
+   class runtime_resource_builder
+   {
+   public:
+      runtime_resource_builder(std::shared_ptr<master_resource_builder> i_mrb, std::shared_ptr<ux_camera> i_ux_cam)
+      {
+         mrb = i_mrb;
+         ux_cam = i_ux_cam;
+      }
+
+      void build_runtime_objects()
+      {
+         if (mrb)
+         {
+            load_resources();
+            build_gfx_objects();
+            set_globe_borders_and_dots();
+         }
+         else
+         {
+            load_resources();
+            build_gfx_objects();
+            set_globe_borders_and_dots();
+         }
+      }
+
+      // counterpart is 'save_resources' in master_resource_builder
+      void load_resources()
+      {
+         res_file = pfm_file::get_inst(RES_MAP_NAME);
+         res_rw = rw_file_sequence::new_inst(res_file);
+
+
+         // start reading
+         res_file->io.open("rb");
+         uint32 globe_coords_pos = res_rw->r.read_uint32();
+         uint32 border_dots_pos = res_rw->r.read_uint32();
+         uint32 globe_dots_pos = res_rw->r.read_uint32();
+         globe_tex_width = res_rw->r.read_uint32();
+         globe_tex_height = globe_tex_width / 2;
+
+         // globe_coords
+         res_rw->seek(globe_coords_pos);
+         uint32 globe_coords_count = res_rw->r.read_uint32();
+
+         globe_coords.resize(globe_coords_count);
+         res_rw->r.read_real32((float*)globe_coords.data(), globe_coords_count * 2, 0);
+
+         // border_dots
+         res_rw->seek(border_dots_pos);
+         uint32 border_dots_count = res_rw->r.read_uint32();
+
+         border_dots.resize(border_dots_count);
+         res_rw->r.read_uint16((uint16*)border_dots.data(), border_dots_count * 2, 0);
+
+         // globe_dots
+         res_rw->seek(globe_dots_pos);
+         uint32 globe_dots_count = res_rw->r.read_uint32();
+
+         globe_dots.resize(globe_dots_count);
+         res_rw->r.read_uint16((uint16*)globe_dots.data(), globe_dots_count * 2, 0);
+
+         auto file_size = res_file->length();
+         auto bytes_read = res_rw->get_total_bytes_read();
+
+         ia_assert(file_size == bytes_read);
+
+         res_rw = nullptr;
+         res_file->io.close();
+         // finished reading
+      }
+
+      void set_globe_borders_and_dots()
+      {
+#if !defined USE_GLOBE_DOT_BORDER_MESHES
+
+         rt_inst = gfx::rt::new_rt();
+         rt_inst->set_color_attachment(globe_tex);
+
+         gfx::rt::set_current_render_target(rt_inst);
+
+         shared_ptr<gfx_state> gl_st = gfx::get_gfx_state();
+         decl_scgfxpl(plist)
+         {
+            { gl::COLOR_CLEAR_VALUE, 0.f, 1.f, 1.f, 0.025f }, { gl::CLEAR_MASK, gl::COLOR_BUFFER_BIT_GL | gl::DEPTH_BUFFER_BIT_GL }, {},
+         };
+         gl_st->set_state(plist);
+
+         globe_dots_vxo->render_mesh(ux_cam);
+         globe_borders_vxo->render_mesh(ux_cam);
+         //ux_cam->draw_axes(glm::vec3(20, 20, 0), 500, 5);
+         ux_cam->update_camera_state();
+
+         gfx::rt::set_current_render_target(nullptr);
+
+#endif
+      }
+
+      void build_gfx_objects()
+      {
+         globe_radius = 100.f;
+         u_v3_light_dir = -glm::vec3(-1.f, 0.f, 0.5f);
+
+         // globe dots
+         {
+            globe_dots_vxo = std::make_shared<gfx_vxo>(vx_info("a_v3_position, a_v3_normal, a_v2_tex_coord"));
+            auto& dots_vxo = *globe_dots_vxo;
+
+            dots_vxo[MP_SHADER_NAME] = "globe-dot";
+            //dots_vxo["u_v3_light_dir"] = u_v3_light_dir;
+            dots_vxo[MP_CULL_FRONT] = false;
+            dots_vxo[MP_CULL_BACK] = false;
+            dots_vxo[MP_DEPTH_WRITE] = false;
+            dots_vxo[MP_DEPTH_TEST] = false;
+            dots_vxo[MP_BLENDING] = MV_ALPHA;
+            //dots_vxo.render_method = GLPT_POINTS;
+         }
+
+         // globe borders
+         {
+            globe_borders_vxo = std::make_shared<gfx_vxo>(vx_info("a_v3_position, a_v3_normal, a_v2_tex_coord"));
+            auto& borders_vxo = *globe_borders_vxo;
+
+            borders_vxo[MP_SHADER_NAME] = "globe-border";
+            //dots_vxo["u_v3_light_dir"] = u_v3_light_dir;
+            borders_vxo[MP_CULL_FRONT] = false;
+            borders_vxo[MP_CULL_BACK] = false;
+            borders_vxo[MP_DEPTH_WRITE] = false;
+            borders_vxo[MP_DEPTH_TEST] = false;
+            borders_vxo[MP_BLENDING] = MV_ALPHA;
+            //dots_vxo.render_method = GLPT_POINTS;
+         }
+
+         // globe vertex object
+         {
+            globe_vxo = std::make_shared<gfx_vpc_ring_sphere>();
+            auto& globe = *globe_vxo;
+
+            globe.get_vx_info().uses_tangent_basis = false;
+            //globe.render_method = GLPT_LINES;
+            globe.set_dimensions(globe_radius, 128);
+            globe.position = glm::vec3(0.f, 0.f, 0.f);
+            globe[MP_SHADER_NAME] = "3d-globe-outline";
+            globe["u_v3_light_dir"] = u_v3_light_dir;
+            globe[MP_CULL_FRONT] = false;
+            globe[MP_CULL_BACK] = false;
+            globe[MP_DEPTH_WRITE] = true;
+            globe[MP_DEPTH_TEST] = false;
+            globe[MP_BLENDING] = MV_ALPHA;
+            //globe[MP_WIREFRAME_MODE] = MV_WF_OVERLAY;
+         }
+
+         // globe texture
+         {
+            gfx_tex_params prm;
+            auto& globe = *globe_vxo;
+
+            prm.wrap_s = prm.wrap_t = gfx_tex_params::e_twm_clamp_to_edge;
+            prm.max_anisotropy = 16.f;
+            prm.min_filter = gfx_tex_params::e_tf_linear_mipmap_linear;
+            prm.mag_filter = gfx_tex_params::e_tf_linear;
+            prm.gen_mipmaps = true;
+
+            globe_tex = gfx::tex::new_tex_2d(gfx_tex::gen_id(), globe_tex_width, globe_tex_height, &prm);
+            globe["u_s2d_tex"] = globe_tex->get_name();
+         }
+
+         // globe tex quad
+         {
+            globe_tex_quad = std::make_shared<gfx_quad_2d>();
+            gfx_quad_2d& mq = *globe_tex_quad;
+
+            mq.set_dimensions(1, 1);
+            mq.set_scale(globe_tex_width * TEX_SCALE, globe_tex_height * TEX_SCALE);
+            mq.set_translation(20, 20.f);
+            mq[MP_BLENDING] = MV_ALPHA;
+            //mq[MP_CULL_BACK] = false;
+            //mq[MP_DEPTH_TEST] = false;
+            mq[MP_SHADER_NAME] = "basic_tex";
+            mq["u_s2d_tex"] = globe_tex->get_name();
+            mq.camera_id_list.push_back(ux_cam->camera_id());
+         }
+
+         build_globe_dots();
+         build_globe_borders();
+      }
+
+      void build_globe_dots()
+      {
+         int globe_dots_count = globe_dots.size();
+         globe_dot_vx dot;
+
+         for (int k = 0; k < globe_dots_count; k++)
+         {
+#if defined USE_GLOBE_DOT_BORDER_MESHES
+
+            float dot_half_width = float(2. * glm::pi<double>() * globe_radius / 2500.);
+            float dot_half_height = dot_half_width;
+
+#else
+
+            float dot_half_width = float(2. * glm::pi<double>() * globe_radius / 400.);
+            float dot_half_height = dot_half_width;
+
+#endif
+
+            globe_map_dot& md = globe_dots[k];
+
+#if defined USE_GLOBE_DOT_BORDER_MESHES
+
+            float latitude = float(angle + 90.f);
+            float longitude = glm::degrees(float(2. * glm::pi<double>() * double(x_offset + x_start) / width));
+
+            get_hot_spot_data(latitude, longitude, (float)globe_radius, dot.pos, dot.nrm);
+            glm::vec3 pos = dot.pos;
+            glm::vec3 left = glm::normalize(glm::cross(dot.nrm, globe_up));
+            glm::vec3 up = glm::normalize(glm::cross(left, dot.nrm));
+
+#else
+
+            glm::vec3 pos(md.x, md.y, 0.f);
+            glm::vec3 left(-1, 0, 0);
+            glm::vec3 up(0, 1, 0);
+
+#endif
+
+            dot.pos = pos - left * dot_half_width + up * dot_half_height;
+            globe_dots_vertices.push_back(dot);
+            dot.pos = pos - left * dot_half_width - up * dot_half_height;
+            globe_dots_vertices.push_back(dot);
+            dot.pos = pos + left * dot_half_width - up * dot_half_height;
+            globe_dots_vertices.push_back(dot);
+            dot.pos = pos + left * dot_half_width + up * dot_half_height;
+            globe_dots_vertices.push_back(dot);
+      }
+
+         int indices_size = globe_dots_vertices.size() / 4 * 6;
+
+         globe_dots_indices.resize(indices_size);
+
+         for (int k = 0, vx_idx = 0; k < indices_size;)
+         {
+            globe_dots_indices[k++] = vx_idx + 0;
+            globe_dots_indices[k++] = vx_idx + 2;
+            globe_dots_indices[k++] = vx_idx + 1;
+            globe_dots_indices[k++] = vx_idx + 2;
+            globe_dots_indices[k++] = vx_idx + 0;
+            globe_dots_indices[k++] = vx_idx + 3;
+            vx_idx += 4;
+         }
+
+         int vx_size = sizeof(globe_dot_vx);
+
+         gfx_vxo_util::set_mesh_data((const uint8*)&globe_dots_vertices[0], globe_dots_vertices.size() * vx_size,
+            &globe_dots_indices[0], globe_dots_indices.size() * sizeof(uint32), globe_dots_vxo);
+   }
+
+      void build_globe_borders()
+      {
+         int border_dots_count = border_dots.size();
+         glm::vec3 globe_up(0, 1, 0);
+         globe_dot_vx dot;
+
+         for (int k = 0, vx_idx = 0; k < border_dots_count; k++)
+         {
+#if defined USE_GLOBE_DOT_BORDER_MESHES
+
+            float dot_half_width = float(2. * glm::pi<double>() * globe_radius / 6500.);
+            float dot_half_height = dot_half_width;
+
+#else
+
+            float dot_half_width = float(2. * glm::pi<double>() * globe_radius / 1000.);
+            float dot_half_height = dot_half_width;
+
+#endif
+
+            globe_map_dot& md = border_dots[k];
+
+#if defined USE_GLOBE_DOT_BORDER_MESHES
+
+            float angle = float(k / double(height - 1.) * 180.);
+            float latitude = float(angle + 90.f);
+            float longitude = glm::degrees(float(2. * glm::pi<double>() * l / double(width - 1.)));
+
+            get_hot_spot_data(latitude, longitude, (float)globe_radius, dot.pos, dot.nrm);
+            glm::vec3 pos = dot.pos;
+            glm::vec3 left = glm::normalize(glm::cross(dot.nrm, globe_up));
+            glm::vec3 up = glm::normalize(glm::cross(left, dot.nrm));
+            tex_aspect_ratio = 1.f;
+
+#else
+
+            glm::vec3 pos(md.x, md.y, 0.f);
+            glm::vec3 left(-1, 0, 0);
+            glm::vec3 up(0, 1, 0);
+
+#endif
+
+            dot.pos = pos - left * dot_half_width + up * dot_half_height;
+            globe_borders_vertices.push_back(dot);
+            dot.pos = pos - left * dot_half_width - up * dot_half_height;
+            globe_borders_vertices.push_back(dot);
+            dot.pos = pos + left * dot_half_width - up * dot_half_height;
+            globe_borders_vertices.push_back(dot);
+            dot.pos = pos + left * dot_half_width + up * dot_half_height;
+            globe_borders_vertices.push_back(dot);
+
+            globe_borders_indices.push_back(vx_idx + 0);
+            globe_borders_indices.push_back(vx_idx + 2);
+            globe_borders_indices.push_back(vx_idx + 1);
+            globe_borders_indices.push_back(vx_idx + 2);
+            globe_borders_indices.push_back(vx_idx + 0);
+            globe_borders_indices.push_back(vx_idx + 3);
+            vx_idx += 4;
+      }
+
+         int vx_size = sizeof(globe_dot_vx);
+
+         gfx_vxo_util::set_mesh_data((const uint8*)&globe_borders_vertices[0], globe_borders_vertices.size() * vx_size,
+            &globe_borders_indices[0], globe_borders_indices.size() * sizeof(uint32), globe_borders_vxo);
+}
+
+      std::shared_ptr<pfm_file> res_file;
+      std::shared_ptr<rw_file_sequence> res_rw;
+      std::vector<globe_coord> globe_coords;
+      std::vector<globe_map_dot> border_dots;
+      std::vector<globe_map_dot> globe_dots;
+
+      int globe_tex_width;
+      int globe_tex_height;
+      float globe_radius;
       glm::vec3 u_v3_light_dir;
+      std::shared_ptr<gfx_tex> globe_tex;
+      std::shared_ptr<gfx_vpc_ring_sphere> globe_vxo;
+      std::shared_ptr<gfx_rt> rt_inst;
+      std::shared_ptr<gfx_quad_2d> globe_tex_quad;
+
+      std::shared_ptr<gfx_vxo> globe_dots_vxo;
+      std::vector<globe_dot_vx> globe_dots_vertices;
+      std::vector<uint32> globe_dots_indices;
+
+      std::shared_ptr<gfx_vxo> globe_borders_vxo;
+      std::vector<globe_dot_vx> globe_borders_vertices;
+      std::vector<uint32> globe_borders_indices;
+
+      std::shared_ptr<master_resource_builder> mrb;
+      std::shared_ptr<ux_camera> ux_cam;
+   };
+
+
+   class main_page : public ux_page
+   {
+   public:
+      main_page(shared_ptr<ux_page_tab> iparent) : ux_page(iparent) {}
+
+      virtual void init()
+      {
+         ux_page::init();
+
+#if defined BUILD_RESOURCES
+
+         mrb = std::make_shared<master_resource_builder>(get_unit()->ux_cam);
+         mrb->build_resources();
+
+#endif
+
+         rrb = std::make_shared<runtime_resource_builder>(mrb, get_unit()->ux_cam);
+         rrb->build_runtime_objects();
+
+         t = 0;
+         free_cam = std::make_shared<free_camera>(get_unit());
+         persp_cam = gfx_camera::new_inst();
+         persp_cam->camera_id = "default";
+         persp_cam->rendering_priority = 0;
+         persp_cam->near_clip_distance = 0.1f;
+         persp_cam->far_clip_distance = 50000.f;
+         persp_cam->fov_y_deg = 60.f;
+         persp_cam->clear_color = true;
+         persp_cam->clear_color_value = gfx_color::colors::black;
+         persp_cam->clear_depth = true;
+         persp_cam->position = glm::vec3(0.f, 0.f, 250.f);
+         free_cam->persp_cam = persp_cam;
+         free_cam->mw_speed_factor = 1.f;
+
+         {
+            skybox = std::make_shared<gfx_box>();
+            gfx_box& skb = *skybox;
+            float s = persp_cam->far_clip_distance * 0.5f;
+
+            skb.set_dimensions(s, s, s);
+            skb[MP_SHADER_NAME] = "sky-box";
+            skb["u_scm_skybox"] = "skybx";
+            skb[MP_CULL_BACK] = false;
+            skb[MP_CULL_FRONT] = true;
+         }
+
+         auto scene = get_unit()->gfx_scene_inst;
+
+         scene->attach(persp_cam);
+         scene->attach(skybox);
+
+#if defined USE_GLOBE_DOT_BORDER_MESHES
+
+         scene->attach(globe_dots_vxo);
+         scene->attach(globe_borders_vxo);
+
+#endif
+
+         scene->attach(rrb->globe_vxo);
+         //globe_vxo->visible = false;
+
+         if (mrb)
+         {
+            scene->attach(mrb->map_quad);
+            scene->attach(rrb->globe_tex_quad);
+
+            mrb->map_quad->visible = false;
+            rrb->globe_tex_quad->visible = false;
+         }
+         scene->attach(rrb->globe_tex_quad);
+
+         rrb->globe_tex_quad->visible = false;
+
+
+         cam_end_pos = glm::vec3(-100.f, 0.f, -200.f) * 0.75f;
+         cam_start_pos = cam_end_pos * 3.2f;
+         intro_duration = 5;
+         reset_cam_pos();
+
+         hot_spot_connex = std::make_shared<hot_spot_connector>(rrb->globe_vxo, rrb->globe_radius);
+         set_random_hot_spots();
+
+         gfx_util::check_gfx_error();
+   }
+
+      virtual void receive(shared_ptr<iadp> idp)
+      {
+         free_cam->update_input(idp);
+
+         if (!idp->is_processed())
+         {
+            if (idp->is_type(key_evt::KEYEVT_EVT_TYPE))
+            {
+               shared_ptr<key_evt> ke = key_evt::as_key_evt(idp);
+
+               if (ke->is_pressed())
+               {
+                  bool isAction = true;
+
+                  switch (ke->get_key())
+                  {
+                  case KEY_M:
+                  {
+                     if (mrb && mrb->map_quad)
+                     {
+                        mrb->map_quad->visible = !mrb->map_quad->visible;
+                     }
+
+                     break;
+                  }
+
+                  case KEY_N:
+                  {
+                     set_random_hot_spots();
+                     break;
+                  }
+
+                  case KEY_G:
+                  {
+                     if (rrb->globe_tex_quad)
+                     {
+                        rrb->globe_tex_quad->visible = !rrb->globe_tex_quad->visible;
+                     }
+
+                     break;
+                  }
+
+                  case KEY_R:
+                  {
+                     hot_spot_connex->restart_animation();
+                     break;
+                  }
+
+                  case KEY_T:
+                  {
+                     start_intro_anim();
+                     break;
+                  }
+
+                  case KEY_Y:
+                  {
+                     reset_cam_pos();
+                     break;
+                  }
+
+                  default:
+                     isAction = false;
+                  }
+
+                  if (isAction)
+                  {
+                     ke->process();
+                  }
+               }
+            }
+         }
+
+         ux_page::receive(idp);
+      }
+
+      virtual void update_state()
+      {
+         ux_page::update_state();
+
+         rrb->globe_vxo->orientation = glm::quat(glm::vec3(0, t, 0));
+         rrb->globe_dots_vxo->orientation = rrb->globe_vxo->orientation;
+         rrb->globe_borders_vxo->orientation = rrb->globe_vxo->orientation;
+         t += 0.001f;
+
+         if (cam_slider.is_enabled())
+         {
+            cam_slider.update();
+
+            double sv = cam_slider.get_value();
+            double v = sv;
+            double N = 20.f;
+            double w = 1.f;
+
+            v = 1.f - (1.f - v) * (1.f - v);
+            v = 1.f - (1.f - v) * (1.f - v);
+            v = ((v * (N - 1)) + w) / N;
+            //v = glm::sqrt(v);
+            persp_cam->position = glm::mix(cam_start_pos, cam_end_pos, v);
+         }
+
+         free_cam->update();
+         skybox->position = persp_cam->position;
+         hot_spot_connex->update();
+
+         //persp_cam->draw_axes(globe_vxo->position, 5 * globe_radius, 1);
+
+         gfx_util::check_gfx_error();
+      }
+
+      virtual void update_view(shared_ptr<ux_camera> g)
+      {
+         ux_page::update_view(g);
+      }
+
+      void set_random_hot_spots()
+      {
+         RNG rng;
+         int hot_spot_chain_list_length = 4 + rng.nextInt(4);
+         std::vector<glm::vec2> hs_list;
+         int list_size = rrb->globe_coords.size();
+         int elem_size = sizeof(double);
+
+         for (int k = 0; k < hot_spot_chain_list_length; k++)
+         {
+            int elem_idx = rng.nextInt(list_size);
+            globe_coord& coord = rrb->globe_coords[elem_idx];
+            glm::vec2 lat_lng(coord.lat, coord.lng);
+
+            hs_list.push_back(lat_lng);
+         }
+
+         hs_list =
+         {
+            glm::vec2(44.4333718, 26.09994665), glm::vec2(51.49999473, -0.116721844), glm::vec2(40.74997906,-73.98001693),
+            glm::vec2(37.74000775,-122.4599777), glm::vec2(21.30687644,-157.8579979), glm::vec2(37.5663491,126.999731),
+            glm::vec2(1.293033466,103.8558207), glm::vec2(30.04996035,31.24996822), glm::vec2(-26.17004474,28.03000972),
+            glm::vec2(-22.92502317,-43.22502079), glm::vec2(-33.92001097,151.1851798)
+         };
+         hot_spot_connex->set_hot_spots(hs_list);
+         hot_spot_connex->show();
+         hot_spot_connex->restart_animation();
+      }
+
+      void start_intro_anim()
+      {
+         hot_spot_connex->restart_animation();
+         cam_slider.start(intro_duration);
+         reset_cam_pos();
+      }
+
+      void reset_cam_pos()
+      {
+         persp_cam->position = cam_start_pos;
+         free_cam->look_at_dir = glm::normalize(-persp_cam->position());
+         free_cam->up_dir = glm::vec3(0.0f, 1.0f, 0.0f);
+         free_cam->target_ref_point = rrb->globe_vxo->position;
+      }
+
+      std::shared_ptr<gfx_box> skybox;
+
+      std::shared_ptr<gfx_camera> persp_cam;
       float t;
       std::shared_ptr<free_camera> free_cam;
       glm::vec3 cam_start_pos;
@@ -1765,17 +2024,8 @@ namespace techno_globe_ns
       basic_time_slider cam_slider;
       std::shared_ptr<hot_spot_connector> hot_spot_connex;
 
-      std::shared_ptr<pfm_file> res_file;
-      std::shared_ptr<rw_file_sequence> res_rw;
-      std::vector<globe_coord> globe_coords;
-      std::vector<globe_map_dot> border_dots;
-      std::vector<globe_map_dot> globe_dots;
-
-      std::shared_ptr<raw_img_data> globe_src_img;
-      std::shared_ptr<gfx_rt> rt_inst;
-      std::shared_ptr<gfx_tex> map_tex;
-      std::shared_ptr<gfx_quad_2d> map_quad;
-      std::shared_ptr<gfx_quad_2d> globe_tex_quad;
+      std::shared_ptr<master_resource_builder> mrb;
+      std::shared_ptr<runtime_resource_builder> rrb;
    };
 }
 using namespace techno_globe_ns;
