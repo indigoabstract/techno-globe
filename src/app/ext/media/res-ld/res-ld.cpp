@@ -1,8 +1,15 @@
 #include "stdafx.h"
 
+#include "appplex-conf.hpp"
 #include "res-ld.hpp"
+
+#if defined MOD_PNG
+
 #include "min.hpp"
 #include <libpng/png.h>
+
+#pragma comment (lib, "libpng17.lib")
+#pragma comment (lib, "zlib.lib")
 
 
 png_byte color_type = PNG_COLOR_TYPE_RGBA;
@@ -151,7 +158,7 @@ void release_raw_image_data(const raw_img_data* data);
 
 raw_img_data::raw_img_data()
 {
-   data = 0;
+   data = nullptr;
 }
 
 raw_img_data::~raw_img_data()
@@ -363,3 +370,31 @@ static gfx_enum get_gl_color_format(const int png_color_format)
 
    return 0;
 }
+
+#else
+
+raw_img_data::raw_img_data()
+{
+   data = nullptr;
+}
+
+raw_img_data::raw_img_data(int i_width, int i_height)
+{
+   width = i_width;
+   height = i_height;
+   size = width * height * 4;
+   gl_color_format = 1;
+   data = new uint8[size];
+   memset(data, 0, size);
+}
+
+raw_img_data::~raw_img_data()
+{
+   if (data)
+   {
+      delete[] data;
+      data = nullptr;
+   }
+}
+
+#endif

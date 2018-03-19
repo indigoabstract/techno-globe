@@ -9,7 +9,9 @@
 #include "gfx-state.hpp"
 #include "gfx.hpp"
 #include "ext/gfx-surface.hpp"
+#if defined MOD_OBJ_LOADER
 #include <tiny-obj-loader/tiny_obj_loader.hpp>
+#endif
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
@@ -346,6 +348,8 @@ void gfx_vxo::push_material_params()
 
       if (name_changed && mesh_name.length() > 0)
       {
+#if defined MOD_OBJ_LOADER
+
          name_changed = false;
          shared_ptr<gfx_obj_vxo> obj_mesh = static_pointer_cast<gfx_obj_vxo>(get_shared_ptr());
 
@@ -481,7 +485,11 @@ void gfx_vxo::push_material_params()
             }
          }
 
-         int x = 3;
+#else
+
+         vprint("error: MOD_OBJ_LOADER is not enabled\n");
+
+#endif
       }
 
       for (; it4 != mat.other_params.end(); it4++)

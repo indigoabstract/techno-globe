@@ -24,8 +24,6 @@ public:
 	float get_ascender();
 	float get_descender();
 	float get_height();
-	glm::vec2 get_text_dim(const std::wstring& itext);
-	float get_text_width(const std::wstring& itext);
 	glm::vec2 get_text_dim(const std::string& itext);
 	float get_text_width(const std::string& itext);
 	float get_text_height(const std::string& itext);

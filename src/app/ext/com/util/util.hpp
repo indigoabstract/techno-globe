@@ -39,7 +39,7 @@ private:
 	float startx;
 	float starty;
 	float decay;
-	float decay_start;
+	uint32 decay_start;
 	int decay_maxmillis;
 	bool active;
 };
@@ -82,14 +82,12 @@ public:
 	struct text_line
 	{
 		shared_ptr<std::string> line;
-		shared_ptr<std::wstring> wline;
 	};
 
 	ia_console();
 	virtual ~ia_console(){}
 
 	void add_line(const std::string& iline);
-	void add_line(const std::wstring& iline);
 	void clear();
 	//void draw(shared_ptr<ux_camera> g);
 

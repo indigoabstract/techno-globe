@@ -1653,7 +1653,7 @@ namespace techno_globe_ns
             globe_dots_vertices.push_back(dot);
             dot.pos = pos + left * dot_half_width + up * dot_half_height;
             globe_dots_vertices.push_back(dot);
-      }
+         }
 
          int indices_size = globe_dots_vertices.size() / 4 * 6;
 
@@ -1674,7 +1674,7 @@ namespace techno_globe_ns
 
          gfx_vxo_util::set_mesh_data((const uint8*)&globe_dots_vertices[0], globe_dots_vertices.size() * vx_size,
             &globe_dots_indices[0], globe_dots_indices.size() * sizeof(uint32), globe_dots_vxo);
-   }
+      }
 
       void build_globe_borders()
       {
@@ -1734,13 +1734,13 @@ namespace techno_globe_ns
             globe_borders_indices.push_back(vx_idx + 0);
             globe_borders_indices.push_back(vx_idx + 3);
             vx_idx += 4;
-      }
+         }
 
          int vx_size = sizeof(globe_dot_vx);
 
          gfx_vxo_util::set_mesh_data((const uint8*)&globe_borders_vertices[0], globe_borders_vertices.size() * vx_size,
             &globe_borders_indices[0], globe_borders_indices.size() * sizeof(uint32), globe_borders_vxo);
-}
+      }
 
       std::shared_ptr<pfm_file> res_file;
       std::shared_ptr<rw_file_sequence> res_rw;
@@ -1851,9 +1851,10 @@ namespace techno_globe_ns
 
          hot_spot_connex = std::make_shared<hot_spot_connector>(rrb->globe_vxo, rrb->globe_radius);
          set_random_hot_spots();
+         start_intro_anim();
 
          gfx_util::check_gfx_error();
-   }
+      }
 
       virtual void receive(shared_ptr<iadp> idp)
       {

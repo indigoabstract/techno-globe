@@ -2,6 +2,7 @@
 
 #include "pfm-def.h"
 
+#define CHECK_GL_ERRORS
 int is_gl_extension_supported(const char* i_extension);
 
 
@@ -22,9 +23,8 @@ int is_gl_extension_supported(const char* i_extension);
 #elif defined PLATFORM_EMSCRIPTEN
 
 	#define USES_OPENGL_ES
-	#include <EGL/egl.h>
-	#include <GLES3/gl3.h>
-	#include <GLES3/gl3ext.h>
+   #include <GLES3/gl3.h>
+   #include <GLES3/gl3ext.h>
 
 #elif defined PLATFORM_WINDOWS_PC || defined PLATFORM_QT_WINDOWS_PC
 

@@ -355,12 +355,17 @@ gfx_tex::gfx_tex(std::string itex_name, const gfx_tex_params* i_prm, std::shared
    uni_tex_type = TEX_2D;
    set_texture_name(itex_name);
 
-   unsigned long iwith, iheight;
-   shared_ptr<raw_img_data> rid = res_ld::inst()->load_image(tex_name);
-   iwith = rid->width;
-   iheight = rid->height;
+#if defined MOD_PNG
 
-   init_dimensions(iwith, iheight);
+   shared_ptr<raw_img_data> rid = res_ld::inst()->load_image(tex_name);
+
+#else
+
+   auto rid = std::make_shared<raw_img_data>(32, 32);
+
+#endif
+
+   init_dimensions(rid->width, rid->height);
 
    switch (uni_tex_type)
    {
@@ -573,8 +578,16 @@ gfx_tex_cube_map::gfx_tex_cube_map(std::string itex_name, std::shared_ptr<gfx> i
 
    for (int k = 0; k < 6; k++)
    {
+#if defined MOD_PNG
+
       std::string img_name = itex_name + "-" + ends[k] + ".png";
       std::shared_ptr<raw_img_data> rid = res_ld::inst()->load_image(img_name);
+
+#else
+
+      auto rid = std::make_shared<raw_img_data>(32, 32);
+
+#endif
 
       if (!is_init)
       {

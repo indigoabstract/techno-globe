@@ -52,33 +52,37 @@ enum gfx_type_id
 };
 
 
-typedef signed char int8;
+typedef char int8;
+typedef signed char sint8;
 typedef unsigned char uint8;
-typedef signed short int16;
+typedef short int16;
+typedef signed short sint16;
 typedef unsigned short uint16;
-typedef signed int int32;
+typedef int int32;
+typedef signed int sint32;
 typedef unsigned int uint32;
-typedef signed long long int64;
+typedef long long int64;
+typedef signed long long sint64;
 typedef unsigned long long uint64;
 typedef float real32;
 typedef double real64;
 
 // gl types
-typedef char gfx_char;
-typedef unsigned int gfx_enum;
-typedef unsigned char gfx_boolean;
-typedef unsigned int gfx_bitfield;
-typedef signed char gfx_byte;
-typedef short gfx_short;
-typedef int gfx_int;
-typedef int gfx_sizei;
-typedef unsigned char gfx_ubyte;
-typedef unsigned short gfx_ushort;
-typedef unsigned int gfx_uint;
-typedef float gfx_float;
-typedef float gfx_clampf;
-typedef double gfx_double;
-typedef double gfx_clampd;
+typedef int8 gfx_char;
+typedef uint32 gfx_enum;
+typedef uint8 gfx_boolean;
+typedef uint32 gfx_bitfield;
+typedef int8 gfx_byte;
+typedef int16 gfx_short;
+typedef int32 gfx_int;
+typedef int32 gfx_sizei;
+typedef uint8 gfx_ubyte;
+typedef uint16 gfx_ushort;
+typedef uint32 gfx_uint;
+typedef real32 gfx_float;
+typedef real32 gfx_clampf;
+typedef real64 gfx_double;
+typedef real64 gfx_clampd;
 typedef void gfx_void;
 typedef uint32 gfx_indices_type;
 

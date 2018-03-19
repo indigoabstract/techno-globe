@@ -192,6 +192,8 @@ void gfx_util::draw_tex(shared_ptr<gfx_tex> itex, float itx, float ity, float iw
 
 void gfx_util::check_gfx_error()
 {
+#if defined CHECK_GL_ERRORS
+
    //if debug build
    {
       int error_code = glGetError();
@@ -213,6 +215,8 @@ void gfx_util::check_gfx_error()
          ia_signal_error();
       }
    }
+
+#endif
 }
 
 // http://lolengine.net/blog/2014/02/24/quaternion-from-two-vectors-final

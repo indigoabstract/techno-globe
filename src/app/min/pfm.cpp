@@ -446,7 +446,7 @@ namespace pfm_impl
 
 	void pfm_file_impl::seek_impl(uint64 ipos, int iseek_pos)
 	{
-		fseek((FILE*)file, ipos, iseek_pos);
+		fseek((FILE*)file, (long)ipos, iseek_pos);
 	}
 
 	uint64 pfm_file_impl::tell_impl()
@@ -984,7 +984,7 @@ shared_ptr<std::vector<uint8> > pfm::filesystem::load_res_byte_vect(shared_ptr<p
 
 	if (ifile->io.open())
 	{
-		int size = ifile->length();
+		int size = (int)ifile->length();
 
 		res = shared_ptr<vector<uint8> >(new vector<uint8>(size));
 		ifile->io.read(begin_ptr(res), size);
@@ -1007,7 +1007,7 @@ shared_ptr<std::string> pfm::filesystem::load_res_as_string(shared_ptr<pfm_file>
 
 	if (ifile->io.open("rt"))
 	{
-		int size = ifile->length();
+		int size = (int)ifile->length();
 		auto res = std::make_shared<vector<uint8> >(size);
 		const char* res_bytes = (const char*)begin_ptr(res);
 		int text_size = ifile->io.read(begin_ptr(res), size);
