@@ -2,7 +2,10 @@
 
 #include "pfm-def.h"
 
-#define CHECK_GL_ERRORS
+#ifndef NDEBUG
+   #define CHECK_GL_ERRORS
+#endif
+
 int is_gl_extension_supported(const char* i_extension);
 
 
@@ -24,7 +27,7 @@ int is_gl_extension_supported(const char* i_extension);
 
 	#define USES_OPENGL_ES
    #include <GLES3/gl3.h>
-   #include <GLES3/gl3ext.h>
+   #include <GLES3/gl2ext.h>
 
 #elif defined PLATFORM_WINDOWS_PC || defined PLATFORM_QT_WINDOWS_PC
 
@@ -72,12 +75,12 @@ int is_gl_extension_supported(const char* i_extension);
 
 	#define ia_glGetProcAddress(name) eglGetProcAddress(name)
 
-	#if !defined GL_TEXTURE_MAX_ANISOTROPY_EXT
-	#define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
+	#ifndef GL_TEXTURE_MAX_ANISOTROPY_EXT
+	   #define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
 	#endif
 
-	#if !defined GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT
-	#define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
+   #ifndef GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT
+	   #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
 	#endif
 
 #elif defined USES_OPENGL_GLEW

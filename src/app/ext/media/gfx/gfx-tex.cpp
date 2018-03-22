@@ -1,5 +1,6 @@
 #include "stdafx.h"
 
+#include "appplex-conf.hpp"
 #include "gfx-tex.hpp"
 #include "gfx.hpp"
 #include "min.hpp"

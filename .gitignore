@@ -45,3 +45,7 @@
 /src/app/min/appplex-conf.cpp
 
 /pfm/msvc/proj
+/pfm/emscripten/build
+/pfm/emscripten/lib-src
+/pfm/emscripten/prj
+/pfm/emscripten/src/res

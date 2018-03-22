@@ -16,8 +16,10 @@ add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
 
 # Command to output information to the console
 # Useful for displaying errors, warnings, and debugging
-message ("cxx Flags: " ${CMAKE_CXX_FLAGS})
+message ("CMAKE_CXX_FLAGS: " ${CMAKE_CXX_FLAGS})
+message ("CMAKE_C_FLAGS: " ${CMAKE_C_FLAGS})
 message("CMAKE_SYSTEM_NAME  " ${CMAKE_SYSTEM_NAME})
+message("CMAKE_C_COMPILER  " ${CMAKE_C_COMPILER})
 
 if (CMAKE_SYSTEM_NAME MATCHES "Windows")
 
@@ -46,7 +48,7 @@ if (CMAKE_SYSTEM_NAME MATCHES "Windows")
     set(ADDITIONAL_LIBRARIES wsock32)
 	
 	find_library(GLEW_LIB glew32)
-	find_library(PNG_LIB libpng17)
+	find_library(PNG_LIB libpng16)
 	find_library(ZLIB_LIB zlib)
 	find_library(FREETYPE_LIB freetype.lib)
 	
@@ -60,6 +62,77 @@ if (CMAKE_SYSTEM_NAME MATCHES "Windows")
 	
 elseif (CMAKE_SYSTEM_NAME MATCHES "Emscripten")
 
+	message("CMAKE_CURRENT_LIST_DIR  " ${CMAKE_CURRENT_LIST_DIR})
+	message("PROJECT_SOURCE_DIR  " ${PROJECT_SOURCE_DIR})
+
+	set(EMSC_COMMON_FLAGS)
+	set(EMSC_CXX_FLAGS)
+	set(EMSC_LINKER_FLAGS)
+	set(EMSC_LINKER_FLAGS_RELEASE)
+	set(EMSC_EXE_LINKER_FLAGS)
+	#set(EMSC_AR_FLAGS)
+
+	#set(EMSC_EXE_LINKER_FLAGS "${EMSC_EXE_LINKER_FLAGS} --shell-file ${CMAKE_CURRENT_LIST_DIR}/test_html5_fullscreen.html")
+
+	# c++ compiler flags
+	set(CMAKE_CXX_FLAGS "${EMSC_COMMON_FLAGS} ${EMSC_CXX_FLAGS} -std=c++14 -stdlib=libc++ -fno-rtti")
+	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
+	set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Oz --llvm-lto 3 --closure 1")
+	#set(CMAKE_CXX_FLAGS "${EMSC_COMMON_FLAGS} ${EMSC_CXX_FLAGS} -std=c++11 -stdlib=libc++ -fstrict-aliasing -Wall -Wno-multichar -Wextra -Wno-unused-parameter -Wno-unknown-pragmas -Wno-ignored-qualifiers -Wno-long-long -Wno-overloaded-virtual -Wno-deprecated-writable-strings -Wno-unused-volatile-lvalue -Wno-inconsistent-missing-override -Wno-warn-absolute-paths -Wno-expansion-to-defined")
+	#set(CMAKE_CXX_FLAGS_RELEASE "${EMSCRIPTEN_OPT} -DNDEBUG")
+	#set(CMAKE_CXX_FLAGS_PROFILING "${EMSCRIPTEN_OPT} -DNDEBUG --profiling")
+
+	# c compiler flags
+	set(CMAKE_C_FLAGS "${EMSC_COMMON_FLAGS} ${CMAKE_C_FLAGS} -std=c99 -Wall")
+	set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
+	set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -Oz --llvm-lto 3 --closure 1")
+	#set(CMAKE_C_FLAGS "${EMSC_COMMON_FLAGS} -fstrict-aliasing -Wall -Wextra -Wno-multichar -Wno-unused-parameter -Wno-unknown-pragmas -Wno-ignored-qualifiers -Wno-long-long -Wno-overloaded-virtual -Wno-deprecated-writable-strings -Wno-unused-volatile-lvalue -Wno-warn-absolute-paths -Wno-expansion-to-defined")
+	#set(CMAKE_C_FLAGS_RELEASE "${EMSCRIPTEN_OPT} -DNDEBUG")
+	#set(CMAKE_C_FLAGS_PROFILING "${EMSCRIPTEN_OPT} -DNDEBUG --profiling")
+
+	# linker flags
+	set(CMAKE_EXE_LINKER_FLAGS "${EMSC_COMMON_FLAGS} ${EMSC_LINKER_FLAGS} ${EMSC_EXE_LINKER_FLAGS}")
+	#set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${EMSCRIPTEN_OPT} ${EMSC_LINKER_FLAGS_RELEASE}")
+	#set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-O0 -g")
+	#set(CMAKE_EXE_LINKER_FLAGS_PROFILING "--profiling ${EMSCRIPTEN_OPT} ${EMSC_LINKER_FLAGS_RELEASE}")
+
+	#set(EMCC_LINKER_FLAGS "-o ${CMAKE_CURRENT_LIST_DIR}/main.html --shell-file ${CMAKE_CURRENT_LIST_DIR}/test_html5_fullscreen.html -O0 -s USE_WEBGL2=1")
+	#set(CMAKE_REQUIRED_FLAGS "${EMCC_LINKER_FLAGS}")
+	
+	set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
+	
+	add_library(app_plex_main STATIC "")
+	
+	# common include directories
+	include_directories(
+	"${CMAKE_CURRENT_LIST_DIR}/src"
+	"${CMAKE_CURRENT_LIST_DIR}/src/app/min"
+	"${CMAKE_CURRENT_LIST_DIR}/src/app/min/unit"
+	"${CMAKE_CURRENT_LIST_DIR}/src/app/ext"
+	"${CMAKE_CURRENT_LIST_DIR}/src/app/ext/media/gfx"
+	"${CMAKE_CURRENT_LIST_DIR}/src/app/ext/tlib"
+	"${CMAKE_CURRENT_LIST_DIR}/src/app/units"
+	"${CMAKE_CURRENT_LIST_DIR}/src/lib/std/inc"
+	)
+	include_directories("${CMAKE_CURRENT_LIST_DIR}/pfm/emscripten/src")
+	
+	include("${CMAKE_CURRENT_LIST_DIR}/src/CMakeLists.txt")
+	
+	set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} "${CMAKE_CURRENT_LIST_DIR}/pfm/emscripten/lib")
+	find_library(ZLIB_LIB libz.a)
+	find_library(PNG_LIB libpng.a)
+	message("CMAKE_LIBRARY_PATH: " ${CMAKE_LIBRARY_PATH})
+	#find_library(FREETYPE_LIB freetype.lib)
+	
+	link_directories("${CMAKE_CURRENT_LIST_DIR}/pfm/emscripten/lib")
+	
+	if(NOT (ZLIB_LIB AND PNG_LIB))
+		message(FATAL_ERROR "Libraries not found! "  ${ZLIB_LIB} " and " ${PNG_LIB})
+	else()
+		message("Libraries: " ${ZLIB_LIB} " and " ${PNG_LIB})
+	endif()
+	
+	include("${CMAKE_CURRENT_LIST_DIR}/pfm/emscripten/src/CMakeLists.txt")
 	
 elseif (CMAKE_SYSTEM_NAME MATCHES "Android")
 

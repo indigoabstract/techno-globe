@@ -575,29 +575,41 @@ void gfx::get_render_target_pixels_impl(shared_ptr<gfx_rt> irt, void* ivect)
 
 void gfx::remove_gfx_obj(const gfx_obj* iobj)
 {
-   switch (iobj->get_type())
-   {
-   case gfx_obj::e_gfx_rt:
-   {
-      auto it = std::find_if(rt_list.begin(), rt_list.end(), [](weak_ptr<gfx_rt> wp)->bool { return wp.expired(); });
-      rt_list.erase(it);
-      break;
-   }
+    switch (iobj->get_type())
+    {
+    case gfx_obj::e_gfx_rt:
+    {
+        struct pred
+        {
+            bool operator()(std::weak_ptr<gfx_rt> wp) { return wp.expired(); }
+        };
+        auto it = std::find_if(rt_list.begin(), rt_list.end(), pred());
+        rt_list.erase(it);
+        break;
+    }
 
-   case gfx_obj::e_gfx_shader:
-   {
-      auto it = std::find_if(shader_list.begin(), shader_list.end(), [](weak_ptr<gfx_shader> wp)->bool { return wp.expired(); });
-      shader_list.erase(it);
-      break;
-   }
+    case gfx_obj::e_gfx_shader:
+    {
+        struct pred
+        {
+            bool operator()(std::weak_ptr<gfx_shader> wp) { return wp.expired(); }
+        };
+        auto it = std::find_if(shader_list.begin(), shader_list.end(), pred());
+        shader_list.erase(it);
+        break;
+    }
 
-   case gfx_obj::e_gfx_tex:
-   {
-      auto it = std::find_if(tex_list.begin(), tex_list.end(), [](weak_ptr<gfx_tex> wp)->bool { return wp.expired(); });
-      tex_list.erase(it);
-      break;
-   }
-   }
+    case gfx_obj::e_gfx_tex:
+    {
+        struct pred
+        {
+            bool operator()(std::weak_ptr<gfx_tex> wp) { return wp.expired(); }
+        };
+        auto it = std::find_if(tex_list.begin(), tex_list.end(), pred());
+        tex_list.erase(it);
+        break;
+    }
+    }
 }
 
 gfx::gfx()

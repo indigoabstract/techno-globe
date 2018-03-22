@@ -196,25 +196,25 @@ public:
 };
 
 
-class ia_bad_any_cast : public std::bad_cast
+class mws_bad_any_cast : public std::bad_cast
 {
 public:
-   virtual const char* what() const noexcept
+   virtual const char* what() const throw()
    {
       return "ia_bad_any_cast: failed conversion using ia_any_cast";
    }
 };
 
 
-struct ia_any
+struct mws_any
 {
-   ia_any() = default;
-   template <typename T> ia_any(T const& v) : storage_ptr(new storage<T>(v)) {}
-   ia_any(ia_any const& other) : storage_ptr(other.storage_ptr ? std::move(other.storage_ptr->clone()) : nullptr) {}
+   mws_any() = default;
+   template <typename T> mws_any(T const& v) : storage_ptr(new storage<T>(v)) {}
+   mws_any(mws_any const& other) : storage_ptr(other.storage_ptr ? std::move(other.storage_ptr->clone()) : nullptr) {}
 
-   void swap(ia_any& other) { storage_ptr.swap(other.storage_ptr); }
-   friend void swap(ia_any& a, ia_any& b) { a.swap(b); };
-   ia_any& operator=(ia_any other) { swap(other); return *this; }
+   void swap(mws_any& other) { storage_ptr.swap(other.storage_ptr); }
+   friend void swap(mws_any& a, mws_any& b) { a.swap(b); };
+   mws_any& operator=(mws_any other) { swap(other); return *this; }
    bool empty() { return storage_ptr == nullptr; }
 
 private:
@@ -232,28 +232,28 @@ private:
    };
 
    std::unique_ptr<storage_base> storage_ptr;
-   template<typename T> friend T& any_cast(ia_any      &);
-   template<typename T> friend T const& any_cast(ia_any const&);
+   template<typename T> friend T& mws_any_cast(mws_any&);
+   template<typename T> friend T const& mws_any_cast(mws_any const&);
 };
 
-template <typename T> T& any_cast(ia_any& a)
+template <typename T> T& mws_any_cast(mws_any& a)
 {
-   if (auto p = dynamic_cast<ia_any::storage<T>*>(a.storage_ptr.get()))
+   if (auto p = dynamic_cast<mws_any::storage<T>*>(a.storage_ptr.get()))
    {
       return p->value;
    }
 
-   throw ia_bad_any_cast();
+   throw mws_bad_any_cast();
 }
 
-template <typename T> T const& any_cast(ia_any const& a)
+template <typename T> T const& mws_any_cast(mws_any const& a)
 {
-   if (auto p = dynamic_cast<ia_any::storage<T> const*>(a.storage_ptr.get()))
+   if (auto p = dynamic_cast<mws_any::storage<T> const*>(a.storage_ptr.get()))
    {
       return p->value;
    }
 
-   throw ia_bad_any_cast();
+   throw mws_bad_any_cast();
 }
 
 

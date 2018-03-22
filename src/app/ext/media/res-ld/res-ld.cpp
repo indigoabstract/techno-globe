@@ -8,9 +8,6 @@
 #include "min.hpp"
 #include <libpng/png.h>
 
-#pragma comment (lib, "libpng17.lib")
-#pragma comment (lib, "zlib.lib")
-
 
 png_byte color_type = PNG_COLOR_TYPE_RGBA;
 png_byte bit_depth = 8;

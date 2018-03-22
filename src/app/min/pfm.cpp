@@ -28,6 +28,10 @@ using std::vector;
 #if defined PLATFORM_ANDROID
 
 
+#include "main.hpp"
+
+#define pfm_app_inst		android_main::get_instance()
+
 const std::string dir_separator = "/";
 
 platform_id pfm::get_platform_id()
@@ -40,13 +44,11 @@ gfx_type_id pfm::get_gfx_type_id()
 	return gfx_type_opengl_es;
 }
 
-#include "main.hpp"
 #include <android/log.h>
 
 // trace
 #define os_trace(arg)		__android_log_write(ANDROID_LOG_INFO, "appplex", arg)
 #define wos_trace(arg)		__android_log_write(ANDROID_LOG_INFO, "appplex", arg)
-#define pfm_app_inst		android_main::get_instance()
 
 #if !defined MOD_BOOST
 
@@ -67,14 +69,48 @@ uint32 pfm::time::get_time_millis()
 
 #elif defined PLATFORM_IOS
 
+
 const std::string dir_separator = "/";
+
 
 #elif defined PLATFORM_EMSCRIPTEN
 
+
+#include "main.hpp"
+
+#define pfm_app_inst emst_main::get_instance()
+
 const std::string dir_separator = "/";
+
+platform_id pfm::get_platform_id()
+{
+   return platform_emscripten;
+}
+
+gfx_type_id pfm::get_gfx_type_id()
+{
+   return gfx_type_opengl_es;
+}
+
+uint32 pfm::time::get_time_millis()
+{
+   struct timespec ts;
+
+   if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+   {
+      pfm_app_inst->write_text_nl("error");
+   }
+
+   return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+
 
 #elif defined PLATFORM_WINDOWS_PC
 
+
+#include "main.hpp"
+
+#define pfm_app_inst		msvc_main::get_instance()
 
 const std::string dir_separator = "\\";
 
@@ -94,10 +130,6 @@ gfx_type_id pfm::get_gfx_type_id()
 {
 	return gfx_type_opengl;
 }
-
-#include "..\..\..\pfm\msvc\src\main.hpp"
-
-#define pfm_app_inst		msvc_main::get_instance()
 
 #if !defined MOD_BOOST
 

@@ -1608,11 +1608,17 @@ namespace techno_globe_ns
 
       void build_globe_dots()
       {
+         double start_angle_rad = 0.;
+         double stop_angle_rad = glm::radians<double>(180.);
+         double equator_circumference = globe_tex_width;;
+         double unit_globe_radius = equator_circumference / (2. * glm::pi<double>());
          int globe_dots_count = globe_dots.size();
          globe_dot_vx dot;
 
          for (int k = 0; k < globe_dots_count; k++)
          {
+            globe_map_dot& md = globe_dots[k];
+
 #if defined USE_GLOBE_DOT_BORDER_MESHES
 
             float dot_half_width = float(2. * glm::pi<double>() * globe_radius / 2500.);
@@ -1620,12 +1626,25 @@ namespace techno_globe_ns
 
 #else
 
-            float dot_half_width = float(2. * glm::pi<double>() * globe_radius / 400.);
+            float dot_half_width = float(2. * glm::pi<double>() * globe_radius / 407.);
             float dot_half_height = dot_half_width;
 
-#endif
+            double p = (double)md.y / globe_tex_height;
+            double angle_rad = glm::mix<double>(start_angle_rad, stop_angle_rad, p);
+            double small_circle_radius = unit_globe_radius * glm::sin(angle_rad);
+            double small_circle_circumference = 2. * glm::pi<double>() * small_circle_radius;
+            double circle_circumference_prop = small_circle_circumference / equator_circumference;
 
-            globe_map_dot& md = globe_dots[k];
+            if (circle_circumference_prop > 0.)
+            {
+               dot_half_width = float(dot_half_height / circle_circumference_prop);
+            }
+            else
+            {
+               dot_half_width = globe_tex_width / 2.f;
+            }
+
+#endif
 
 #if defined USE_GLOBE_DOT_BORDER_MESHES
 
@@ -1775,7 +1794,7 @@ namespace techno_globe_ns
    public:
       main_page(shared_ptr<ux_page_tab> iparent) : ux_page(iparent) {}
 
-      virtual void init()
+      virtual void init() override
       {
          ux_page::init();
 
@@ -1856,7 +1875,7 @@ namespace techno_globe_ns
          gfx_util::check_gfx_error();
       }
 
-      virtual void receive(shared_ptr<iadp> idp)
+      virtual void receive(shared_ptr<iadp> idp) override
       {
          free_cam->update_input(idp);
 
@@ -1931,7 +1950,7 @@ namespace techno_globe_ns
          ux_page::receive(idp);
       }
 
-      virtual void update_state()
+      virtual void update_state() override
       {
          ux_page::update_state();
 
@@ -1965,9 +1984,17 @@ namespace techno_globe_ns
          gfx_util::check_gfx_error();
       }
 
-      virtual void update_view(shared_ptr<ux_camera> g)
+      virtual void update_view(shared_ptr<ux_camera> g) override
       {
          ux_page::update_view(g);
+      }
+
+      virtual void on_resize() override
+      {
+         int w = get_unit()->get_width();
+         int h = get_unit()->get_height();
+
+         vprint("on_resize called: %d %d\n", w, h);
       }
 
       void set_random_hot_spots()
