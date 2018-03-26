@@ -800,13 +800,7 @@ bool gfx_material::is_std_param(const std::string& iparam_name)
 
 shared_ptr<gfx_shader> gfx_material::load_shader()
 {
-   if (shader)
-   {
-#if defined PLATFORM_WINDOWS_PC && defined _DEBUG
-      shader->reload_on_modifications();
-#endif
-   }
-   else
+   if (!shader)
    {
       gfx_material& inst = *this;
       gfx_material_entry& fsh = inst[MP_SHADER_NAME][MP_FSH_NAME];
@@ -831,6 +825,12 @@ shared_ptr<gfx_shader> gfx_material::load_shader()
          //vprint("gl_material::load_shader(): failed to load shader. switching to default\n");
          return gfx::shader::get_program_by_name("black_shader");
       }
+   }
+   else
+   {
+#if defined PLATFORM_WINDOWS_PC && defined _DEBUG
+      shader->reload_on_modifications();
+#endif
    }
 
    return shader;

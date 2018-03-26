@@ -74,7 +74,7 @@ public:
          recording_txt_dim = recording_fnt->get_text_dim(recording_txt);
          date_fnt = ux_font::new_inst(20.f);
          date_fnt->set_color(gfx_color::colors::cyan);
-         pbo_supported = is_gl_extension_supported("GL_ARB_pixel_buffer_object") != 0;
+         pbo_supported = mws_is_gl_extension_supported("GL_ARB_pixel_buffer_object") != 0;
          y_pbo_ids = { 0, 0 };
          u_pbo_ids = { 0, 0 };
          v_pbo_ids = { 0, 0 };

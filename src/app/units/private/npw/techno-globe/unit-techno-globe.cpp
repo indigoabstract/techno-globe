@@ -23,12 +23,14 @@
 #include "utils/free-camera.hpp"
 #include "tlib/rng/rng.hpp"
 #include <glm/glm.hpp>
-#include <queue>
 
-//#define USE_GLOBE_DOT_BORDER_MESHES
-//#define BUILD_RESOURCES
+#include "com/unit/update-ctrl.hpp"
+#include "pfmgl.h"
 
-#if defined BUILD_RESOURCES
+
+//#define USES_RESOURCE_BUILDER
+
+#if defined USES_RESOURCE_BUILDER
 #include "rapidcsv.hpp"
 #endif
 
@@ -919,7 +921,7 @@ namespace techno_globe_ns
    const std::string RES_MAP_NAME = "res-file";
    const float TEX_SCALE = 0.25f;
 
-   struct globe_dot_vx
+   struct globe_border_dot_vx
    {
       glm::vec3 pos;
       glm::vec3 nrm;
@@ -929,12 +931,22 @@ namespace techno_globe_ns
 
    struct globe_coord
    {
-      float lat;
-      float lng;
+      std::string name;
+      real32 lat;
+      real32 lng;
+      uint32 pop;
    };
 
 
-   struct globe_map_dot
+   struct globe_coord_dot
+   {
+      float lat;
+      float lng;
+      float size;
+   };
+
+
+   struct globe_border_dot
    {
       uint16 x;
       uint16 y;
@@ -949,9 +961,10 @@ namespace techno_globe_ns
       master_resource_builder(std::shared_ptr<ux_camera> i_ux_cam)
       {
          ux_cam = i_ux_cam;
+         globe_radius = 100.f;
       }
 
-#if defined BUILD_RESOURCES
+#if defined USES_RESOURCE_BUILDER
 
       void build_resources()
       {
@@ -1022,7 +1035,15 @@ namespace techno_globe_ns
             //mq[MP_DEPTH_TEST] = false;
             mq[MP_SHADER_NAME] = "basic_tex";
             mq["u_s2d_tex"] = map_tex->get_name();
+            mq.camera_id_list.clear();
             mq.camera_id_list.push_back(ux_cam->camera_id());
+
+            //auto csv_path = pfm::filesystem::get_path("simplemaps-worldcities-basic.csv");
+            //auto drtf_path = pfm::filesystem::get_path("dummy-runtime-file");
+            //auto res_path = mws_util::path::get_directory_from_path(csv_path);
+            //std::string res_file_path = res_path + "/map.png";
+            //auto res_file = pfm_file::get_inst(res_file_path);
+            //res_ld::inst()->save_image(res_file, tex_width, tex_height, (uint8*)rgba_buffer.data(), res_ld::e_no_flip);
          }
 
          map_tex->update(0, (const char*)rgba_buffer.data());
@@ -1046,7 +1067,7 @@ namespace techno_globe_ns
                {
                   if (b[ml].g == 0 || b[mr].g == 0 || b[tm].g == 0 || b[bm].g == 0)
                   {
-                     globe_map_dot d;
+                     globe_border_dot d;
 
                      d.x = l;
                      d.y = k;
@@ -1105,109 +1126,82 @@ namespace techno_globe_ns
 
       void build_globe_dots(std::vector<rgba_32_fmt>& rgba_buffer, int width, int height)
       {
-         // dot_row_count must be greater then 1
-         int dot_row_count = 227;// 129 * 2;
-         int equator_dot_count = 439;// 259 * 2;
-         double start_angle = 0;
-         double stop_angle = 180;
-         double unit_globe_radius = 1.f;
-         double equator_circumference = 2. * glm::pi<double>() * unit_globe_radius;
-         int point_count = 0;
-         float tex_aspect_ratio = float(width) / height;
+         int lat_ring_count = 0;
+         int meridian_count = 480;
+         double start_angle = 0.;
+         double stop_angle = 180.;
+         double pole_dot_size = globe_radius / 10000.;
+         double equator_dot_size = globe_radius / 200.;
+         double pole_dot_step = globe_radius / 110.;
+         double equator_dot_step = globe_radius / 80.;
+         double angle = start_angle + 0.01;
+         double equator_circumference = 2. * glm::pi<double>();
+         double globe_eq_circumference = 2. * glm::pi<double>() * globe_radius;
+         glm::vec3 globe_up(0, 1, 0);
 
-         for (int k = 0; k < dot_row_count; k++)
+         globe_dots_total_count = 0;
+
+         while (angle <= stop_angle)
          {
-            double p = (double)k / (dot_row_count - 1);
-            double angle = glm::mix<double>(start_angle, stop_angle, p);
             double angle_rad = glm::radians<double>(angle);
-            double small_circle_radius = unit_globe_radius * glm::sin(angle_rad);
+            double small_circle_radius = glm::sin(angle_rad);
             double small_circle_circumference = 2. * glm::pi<double>() * small_circle_radius;
             double circle_circumference_prop = small_circle_circumference / equator_circumference;
-            int small_cicle_dot_count = int(circle_circumference_prop * equator_dot_count);
-            small_cicle_dot_count = glm::max(small_cicle_dot_count, 1);
-            int row_idx = int(p * (height - 1));
-            int y_offset = row_idx * width;
-            int x_start = width / (small_cicle_dot_count + 1);
-            glm::vec3 globe_up(0, 1, 0);
-            int h_size = 1;
+            double p = glm::sin(circle_circumference_prop * glm::sin(glm::pi<double>() / 2.));
+            double dot_size = (float)glm::mix<double>(pole_dot_size, equator_dot_size, p);
+            double step_size = (float)glm::mix<double>(pole_dot_step, equator_dot_step, p);
+            double angle_step = glm::degrees<double>((step_size) / (globe_eq_circumference) * 2. * glm::pi<double>());
+            float dot_half_size = float(dot_size * 0.5);
+            float latitude = float(angle + 90.f);
 
-            if (small_cicle_dot_count > 1)
+            globe_dots.push_back(std::vector<globe_coord_dot>());
+            std::vector<globe_coord_dot>& gd = globe_dots.back();
+
+            for (int l = 0; l < meridian_count; l++)
             {
-               h_size = small_cicle_dot_count - 1;
-            }
-
-#if defined USE_GLOBE_DOT_BORDER_MESHES
-
-            float dot_half_width = float(2. * glm::pi<double>() * globe_radius / 2500.);
-            float dot_half_height = dot_half_width;
-
-#else
-
-            float dot_half_width = 0.f;
-            float dot_half_height = width / 2000.f;
-
-            if (small_cicle_dot_count > 1)
-            {
-               dot_half_width = float((dot_half_height) / circle_circumference_prop);
-            }
-            else
-            {
-               dot_half_width = width / 2.f;
-            }
-
-#endif
-
-            for (int l = 0; l < small_cicle_dot_count; l++)
-            {
-               int x_offset = int(l / double(h_size) * width);
-               int idx = y_offset + x_offset + x_start;
+               uint16 x_coord = uint16((double(l) / meridian_count) * width);
+               uint16 y_coord = uint16(glm::mix<double>(0., 1., angle / stop_angle) * (height - 1));
+               uint32 idx = y_coord * width + x_coord;
                rgba_32_fmt& rgba = rgba_buffer[idx];
 
                //if (rgba.r > 0 || rgba.g > 0)
                if (rgba.g > 0)
                {
+                  float longitude = glm::degrees(float(2. * glm::pi<double>() * double(l) / meridian_count));
+                  globe_border_dot_vx dot;
+                  globe_coord_dot gc = { latitude, longitude, 0.f };
+
                   rgba.b = 255;
-                  point_count++;
+                  globe_dots_total_count++;
 
-                  globe_dot_vx dot;
-                  uint16 px = uint16(x_offset + x_start);
-                  uint16 py = uint16((height - 1.f) * (1.f - p));
-                  globe_map_dot md = { px, py };
 
-                  globe_dots.push_back(md);
+                  gd.push_back(gc);
 
-#if defined USE_GLOBE_DOT_BORDER_MESHES
+                  get_hot_spot_data(latitude, longitude, globe_radius, dot.pos, dot.nrm);
 
-                  float latitude = float(angle + 90.f);
-                  float longitude = glm::degrees(float(2. * glm::pi<double>() * double(x_offset + x_start) / width));
-
-                  get_hot_spot_data(latitude, longitude, (float)globe_radius, dot.pos, dot.nrm);
                   glm::vec3 pos = dot.pos;
                   glm::vec3 left = glm::normalize(glm::cross(dot.nrm, globe_up));
                   glm::vec3 up = glm::normalize(glm::cross(left, dot.nrm));
 
-#else
-
-                  glm::vec3 pos(px, py, 0.f);
-                  glm::vec3 left(-1, 0, 0);
-                  glm::vec3 up(0, 1, 0);
-
-#endif
-
-                  dot.pos = pos - left * dot_half_width + up * dot_half_height;
+                  dot.pos = pos - left * dot_half_size + up * dot_half_size;
                   globe_dots_vertices.push_back(dot);
-                  dot.pos = pos - left * dot_half_width - up * dot_half_height;
+                  dot.pos = pos - left * dot_half_size - up * dot_half_size;
                   globe_dots_vertices.push_back(dot);
-                  dot.pos = pos + left * dot_half_width - up * dot_half_height;
+                  dot.pos = pos + left * dot_half_size - up * dot_half_size;
                   globe_dots_vertices.push_back(dot);
-                  dot.pos = pos + left * dot_half_width + up * dot_half_height;
+                  dot.pos = pos + left * dot_half_size + up * dot_half_size;
                   globe_dots_vertices.push_back(dot);
                }
             }
+
+            globe_dot_sizes.push_back(dot_half_size);
+            angle += angle_step;
+            lat_ring_count++;
          }
 
-         int indices_size = globe_dots_vertices.size() / 4 * 6;
+         int indices_size = lat_ring_count * meridian_count * 6;
 
+         vprint("lat_ring_count [%d] total dot count [%d]\n", lat_ring_count, lat_ring_count * meridian_count);
          globe_dots_indices.resize(indices_size);
 
          for (int k = 0, vx_idx = 0; k < indices_size;)
@@ -1221,12 +1215,12 @@ namespace techno_globe_ns
             vx_idx += 4;
          }
 
-         int vx_size = sizeof(globe_dot_vx);
+         //int vx_size = sizeof(globe_border_dot_vx);
 
          //gfx_vxo_util::set_mesh_data((const uint8*)&globe_dots_vertices[0], globe_dots_vertices.size() * vx_size,
          //   &globe_dots_indices[0], globe_dots_indices.size() * sizeof(uint32), globe_dots_vxo);
 
-         vprint("--- total dot points: %d total vertices: %d ---\n", point_count, point_count * 4);
+         vprint("--- total dot points: %d total vertices: %d ---\n", globe_dots_total_count, globe_dots_total_count * 4);
       }
 
       void build_globe_borders(std::vector<rgba_32_fmt>& rgba_buffer, int width, int height)
@@ -1243,45 +1237,19 @@ namespace techno_globe_ns
 
          for (int k = 0; k < height; k++)
          {
-#if defined USE_GLOBE_DOT_BORDER_MESHES
-
             float dot_half_width = float(2. * glm::pi<double>() * globe_radius / 6500.);
             float dot_half_height = dot_half_width;
-
-#else
-
-            double p = (double)k / (height - 1);
-            double angle = glm::mix<double>(start_angle, stop_angle, p);
-            double angle_rad = glm::radians<double>(angle);
-            double small_circle_radius = unit_globe_radius * glm::sin(angle_rad);
-            double small_circle_circumference = 2. * glm::pi<double>() * small_circle_radius;
-            double circle_circumference_prop = small_circle_circumference / equator_circumference;
-            float dot_half_width = width / 8200.f;
-            float dot_half_height = width / 8200.f;
-
-            if (k > 0 && k < height - 1)
-            {
-               dot_half_width = float((dot_half_height) / circle_circumference_prop);
-            }
-            else
-            {
-               dot_half_width = width / 2.f;
-            }
-
-#endif
 
             for (int l = 0; l < width; l++, idx++)
             {
                if (rgba_buffer[idx].r > 0)
                {
-                  globe_dot_vx dot;
+                  globe_border_dot_vx dot;
                   uint16 px = uint16(l);
                   uint16 py = uint16(height - 1 - k);
-                  globe_map_dot md = { px, py };
+                  globe_border_dot md = { px, py };
 
                   border_dots.push_back(md);
-
-#if defined USE_GLOBE_DOT_BORDER_MESHES
 
                   float angle = float(k / double(height - 1.) * 180.);
                   float latitude = float(angle + 90.f);
@@ -1292,14 +1260,6 @@ namespace techno_globe_ns
                   glm::vec3 left = glm::normalize(glm::cross(dot.nrm, globe_up));
                   glm::vec3 up = glm::normalize(glm::cross(left, dot.nrm));
                   tex_aspect_ratio = 1.f;
-
-#else
-
-                  glm::vec3 pos(l, height - 1 - k, 0.f);
-                  glm::vec3 left(-1, 0, 0);
-                  glm::vec3 up(0, 1, 0);
-
-#endif
 
                   dot.pos = pos - left * dot_half_width + up * dot_half_height;
                   globe_borders_vertices.push_back(dot);
@@ -1322,7 +1282,7 @@ namespace techno_globe_ns
             }
          }
 
-         int vx_size = sizeof(globe_dot_vx);
+         int vx_size = sizeof(globe_border_dot_vx);
 
          //gfx_vxo_util::set_mesh_data((const uint8*)&globe_borders_vertices[0], globe_borders_vertices.size() * vx_size,
          //   &globe_borders_indices[0], globe_borders_indices.size() * sizeof(uint32), globe_borders_vxo);
@@ -1341,14 +1301,6 @@ namespace techno_globe_ns
          res_file = pfm_file::get_inst(res_file_path);
          res_rw = rw_file_sequence::new_inst(res_file);
 
-         rapidcsv::Document doc(csv_path);
-
-         std::vector<std::string> city = doc.GetColumn<std::string>("city_ascii");
-         std::vector<float> lat = doc.GetColumn<float>("lat");
-         std::vector<float> lng = doc.GetColumn<float>("lng");
-         int globe_coords_count = lat.size();
-
-
          // start writing
          uint32 globe_coords_pos = 4 * sizeof(uint32);
          uint32 border_dots_pos = 0;
@@ -1362,12 +1314,41 @@ namespace techno_globe_ns
          res_rw->w.write_uint32(globe_tex_width);
 
          // globe_coords
-         res_rw->w.write_uint32(globe_coords_count);
-
-         for (int k = 0; k < globe_coords_count; k++)
          {
-            res_rw->w.write_real32(lat[k]);
-            res_rw->w.write_real32(lng[k]);
+            rapidcsv::Document doc(csv_path);
+
+            std::vector<double> lat = doc.GetColumn<double>("lat");
+            std::vector<double> lng = doc.GetColumn<double>("lng");
+            std::vector<double> pop = doc.GetColumn<double>("pop");
+            std::vector<std::string> city_name = doc.GetColumn<std::string>("city_ascii");
+            int globe_coords_count = city_name.size();
+
+            std::vector<globe_coord> globe_coords;
+
+            for (int k = 0; k < globe_coords_count; k++)
+            {
+               if (pop[k] > 250000.)
+               {
+                  globe_coord gc = { city_name[k], (float)lat[k], (float)lng[k], (uint32)pop[k] };
+                  globe_coords.push_back(gc);
+               }
+            }
+
+            int total_city_count = globe_coords.size();
+
+            res_rw->w.write_uint32(total_city_count);
+
+            for (int k = 0; k < total_city_count; k++)
+            {
+               globe_coord& gc = globe_coords[k];
+
+               res_rw->w.write_string(gc.name);
+               res_rw->w.write_real32(gc.lat);
+               res_rw->w.write_real32(gc.lng);
+               res_rw->w.write_uint32(gc.pop);
+            }
+
+            vprint("total_city_count [%d]\n", total_city_count);
          }
 
          // border_dots
@@ -1380,13 +1361,38 @@ namespace techno_globe_ns
          res_rw->w.write_uint16((uint16*)border_dots.data(), border_dots.size() * 2, 0);
 
          // globe_dots
-         globe_dots_pos = (uint32)res_rw->get_write_position();
-         res_rw->seek(2 * sizeof(uint32));
-         res_rw->w.write_uint32(globe_dots_pos);
-         res_rw->seek(globe_dots_pos);
+         {
+            globe_dots_pos = (uint32)res_rw->get_write_position();
+            res_rw->seek(2 * sizeof(uint32));
+            res_rw->w.write_uint32(globe_dots_pos);
+            res_rw->seek(globe_dots_pos);
 
-         res_rw->w.write_uint32(globe_dots.size());
-         res_rw->w.write_uint16((uint16*)globe_dots.data(), globe_dots.size() * 2, 0);
+            // total number of globe dots
+            res_rw->w.write_uint32(globe_dots_total_count);
+            // row count (how many rows of dots on the same latitude)
+            int row_count = globe_dots.size();
+            res_rw->w.write_uint32(row_count);
+
+            for (int k = 0; k < row_count; k++)
+            {
+               std::vector<globe_coord_dot>& gd = globe_dots[k];
+               float dot_size = globe_dot_sizes[k];
+               int column_count = gd.size();
+
+               // column count (number of dots for this latitude)
+               res_rw->w.write_uint32(column_count);
+               // latitude
+               res_rw->w.write_real32(gd.empty() ? 0.f : gd[0].lat);
+               // dot size for this latitude
+               res_rw->w.write_real32(dot_size);
+
+               for (int l = 0; l < column_count; l++)
+               {
+                  // write longitude for all dots on this latitude
+                  res_rw->w.write_real32(gd[l].lng);
+               }
+            }
+         }
 
          res_rw = nullptr;
          res_file->io.close();
@@ -1397,18 +1403,20 @@ namespace techno_globe_ns
 
       std::shared_ptr<pfm_file> res_file;
       std::shared_ptr<rw_file_sequence> res_rw;
-      std::vector<globe_coord> globe_coords;
-      std::vector<globe_map_dot> border_dots;
-      std::vector<globe_map_dot> globe_dots;
+      std::vector<globe_border_dot> border_dots;
+      std::vector<std::vector<globe_coord_dot> > globe_dots;
+      int globe_dots_total_count;
+      std::vector<float> globe_dot_sizes;
 
       std::shared_ptr<gfx_vxo> globe_dots_vxo;
-      std::vector<globe_dot_vx> globe_dots_vertices;
+      std::vector<globe_border_dot_vx> globe_dots_vertices;
       std::vector<uint32> globe_dots_indices;
 
       std::shared_ptr<gfx_vxo> globe_borders_vxo;
-      std::vector<globe_dot_vx> globe_borders_vertices;
+      std::vector<globe_border_dot_vx> globe_borders_vertices;
       std::vector<uint32> globe_borders_indices;
 
+      float globe_radius;
       int globe_tex_width;
       int globe_tex_height;
       std::shared_ptr<raw_img_data> globe_src_img;
@@ -1461,11 +1469,22 @@ namespace techno_globe_ns
          globe_tex_height = globe_tex_width / 2;
 
          // globe_coords
-         res_rw->seek(globe_coords_pos);
-         uint32 globe_coords_count = res_rw->r.read_uint32();
+         {
+            res_rw->seek(globe_coords_pos);
+            int total_city_count = (int)res_rw->r.read_uint32();
 
-         globe_coords.resize(globe_coords_count);
-         res_rw->r.read_real32((float*)globe_coords.data(), globe_coords_count * 2, 0);
+            globe_coords.resize(total_city_count);
+
+            for (int k = 0; k < total_city_count; k++)
+            {
+               globe_coord& gc = globe_coords[k];
+
+               gc.name = res_rw->r.read_string();
+               gc.lat = res_rw->r.read_real32();
+               gc.lng = res_rw->r.read_real32();
+               gc.pop = res_rw->r.read_uint32();
+            }
+         }
 
          // border_dots
          res_rw->seek(border_dots_pos);
@@ -1475,11 +1494,44 @@ namespace techno_globe_ns
          res_rw->r.read_uint16((uint16*)border_dots.data(), border_dots_count * 2, 0);
 
          // globe_dots
-         res_rw->seek(globe_dots_pos);
-         uint32 globe_dots_count = res_rw->r.read_uint32();
+         {
+            res_rw->seek(globe_dots_pos);
 
-         globe_dots.resize(globe_dots_count);
-         res_rw->r.read_uint16((uint16*)globe_dots.data(), globe_dots_count * 2, 0);
+            // total number of globe dots
+            int globe_dots_total_count = (int)res_rw->r.read_uint32();
+            // row count (how many rows of dots on the same latitude)
+            int row_count = (int)res_rw->r.read_uint32();
+            std::vector<real32> longitude_vect;
+
+            globe_dots.resize(globe_dots_total_count);
+
+            for (int k = 0, idx = 0; k < row_count; k++)
+            {
+               // column count (number of dots for this latitude)
+               uint32 column_count = (int)res_rw->r.read_uint32();
+               // latitude
+               float latitude = res_rw->r.read_real32();
+               // dot size for this latitude
+               float dot_size = res_rw->r.read_real32();
+
+               if (longitude_vect.size() < column_count)
+               {
+                  longitude_vect.resize(column_count);
+               }
+
+               // read the longitude for all dots on this latitude
+               res_rw->r.read_real32(longitude_vect.data(), column_count, 0);
+
+               for (uint32 l = 0; l < column_count; l++)
+               {
+                  auto& gd = globe_dots[idx];
+                  gd.lat = latitude;
+                  gd.lng = longitude_vect[l];
+                  gd.size = dot_size;
+                  idx++;
+               }
+            }
+         }
 
          auto file_size = res_file->length();
          auto bytes_read = res_rw->get_total_bytes_read();
@@ -1493,28 +1545,24 @@ namespace techno_globe_ns
 
       void set_globe_borders_and_dots()
       {
-#if !defined USE_GLOBE_DOT_BORDER_MESHES
+         //rt_inst = gfx::rt::new_rt();
+         //rt_inst->set_color_attachment(globe_tex);
 
-         rt_inst = gfx::rt::new_rt();
-         rt_inst->set_color_attachment(globe_tex);
+         //gfx::rt::set_current_render_target(rt_inst);
 
-         gfx::rt::set_current_render_target(rt_inst);
+         //shared_ptr<gfx_state> gl_st = gfx::get_gfx_state();
+         //decl_scgfxpl(plist)
+         //{
+         //   { gl::COLOR_CLEAR_VALUE, 0.f, 1.f, 1.f, 0.025f }, { gl::CLEAR_MASK, gl::COLOR_BUFFER_BIT_GL | gl::DEPTH_BUFFER_BIT_GL }, {},
+         //};
+         //gl_st->set_state(plist);
 
-         shared_ptr<gfx_state> gl_st = gfx::get_gfx_state();
-         decl_scgfxpl(plist)
-         {
-            { gl::COLOR_CLEAR_VALUE, 0.f, 1.f, 1.f, 0.025f }, { gl::CLEAR_MASK, gl::COLOR_BUFFER_BIT_GL | gl::DEPTH_BUFFER_BIT_GL }, {},
-         };
-         gl_st->set_state(plist);
+         //globe_dots_vxo->render_mesh(ux_cam);
+         //globe_borders_vxo->render_mesh(ux_cam);
+         ////ux_cam->draw_axes(glm::vec3(20, 20, 0), 500, 5);
+         //ux_cam->update_camera_state();
 
-         globe_dots_vxo->render_mesh(ux_cam);
-         globe_borders_vxo->render_mesh(ux_cam);
-         //ux_cam->draw_axes(glm::vec3(20, 20, 0), 500, 5);
-         ux_cam->update_camera_state();
-
-         gfx::rt::set_current_render_target(nullptr);
-
-#endif
+         //gfx::rt::set_current_render_target(nullptr);
       }
 
       void build_gfx_objects()
@@ -1534,6 +1582,7 @@ namespace techno_globe_ns
             dots_vxo[MP_DEPTH_WRITE] = false;
             dots_vxo[MP_DEPTH_TEST] = false;
             dots_vxo[MP_BLENDING] = MV_ALPHA;
+            dots_vxo["u_s2d_tex"] = "detail-tex.png";
             //dots_vxo.render_method = GLPT_POINTS;
          }
 
@@ -1545,7 +1594,7 @@ namespace techno_globe_ns
             borders_vxo[MP_SHADER_NAME] = "globe-border";
             //dots_vxo["u_v3_light_dir"] = u_v3_light_dir;
             borders_vxo[MP_CULL_FRONT] = false;
-            borders_vxo[MP_CULL_BACK] = false;
+            borders_vxo[MP_CULL_BACK] = true;
             borders_vxo[MP_DEPTH_WRITE] = false;
             borders_vxo[MP_DEPTH_TEST] = false;
             borders_vxo[MP_BLENDING] = MV_ALPHA;
@@ -1559,9 +1608,9 @@ namespace techno_globe_ns
 
             globe.get_vx_info().uses_tangent_basis = false;
             //globe.render_method = GLPT_LINES;
-            globe.set_dimensions(globe_radius, 128);
+            globe.set_dimensions(globe_radius, 79);
             globe.position = glm::vec3(0.f, 0.f, 0.f);
-            globe[MP_SHADER_NAME] = "3d-globe-outline";
+            globe[MP_SHADER_NAME] = "3d-globe-bg";
             globe["u_v3_light_dir"] = u_v3_light_dir;
             globe[MP_CULL_FRONT] = false;
             globe[MP_CULL_BACK] = false;
@@ -1571,106 +1620,167 @@ namespace techno_globe_ns
             //globe[MP_WIREFRAME_MODE] = MV_WF_OVERLAY;
          }
 
-         // globe texture
+         // globe spikes
          {
-            gfx_tex_params prm;
-            auto& globe = *globe_vxo;
+            globe_spikes_vxo = std::make_shared<gfx_vxo>(vx_info("a_v3_position, a_v3_normal, a_v2_tex_coord"));
+            auto& spikes_vxo = *globe_spikes_vxo;
 
-            prm.wrap_s = prm.wrap_t = gfx_tex_params::e_twm_clamp_to_edge;
-            prm.max_anisotropy = 16.f;
-            prm.min_filter = gfx_tex_params::e_tf_linear_mipmap_linear;
-            prm.mag_filter = gfx_tex_params::e_tf_linear;
-            prm.gen_mipmaps = true;
-
-            globe_tex = gfx::tex::new_tex_2d(gfx_tex::gen_id(), globe_tex_width, globe_tex_height, &prm);
-            globe["u_s2d_tex"] = globe_tex->get_name();
+            spikes_vxo[MP_SHADER_NAME] = "globe-spike";
+            spikes_vxo[MP_CULL_FRONT] = false;
+            spikes_vxo[MP_CULL_BACK] = false;
+            spikes_vxo[MP_DEPTH_WRITE] = false;
+            spikes_vxo[MP_DEPTH_TEST] = false;
+            spikes_vxo[MP_BLENDING] = MV_ALPHA;
          }
+
+         // globe spike bases
+         {
+            globe_spike_bases_vxo = std::make_shared<gfx_vxo>(vx_info("a_v3_position, a_v3_normal, a_v2_tex_coord"));
+            auto& spike_bases_vxo = *globe_spike_bases_vxo;
+
+            spike_bases_vxo[MP_SHADER_NAME] = "globe-spike-base";
+            spike_bases_vxo[MP_CULL_FRONT] = false;
+            spike_bases_vxo[MP_CULL_BACK] = false;
+            spike_bases_vxo[MP_DEPTH_WRITE] = false;
+            spike_bases_vxo[MP_DEPTH_TEST] = false;
+            spike_bases_vxo[MP_BLENDING] = MV_ADD;
+         }
+
+         // globe texture
+         //{
+         //   gfx_tex_params prm;
+         //   auto& globe = *globe_vxo;
+
+         //   prm.wrap_s = prm.wrap_t = gfx_tex_params::e_twm_clamp_to_edge;
+         //   prm.max_anisotropy = 16.f;
+         //   prm.min_filter = gfx_tex_params::e_tf_linear_mipmap_linear;
+         //   prm.mag_filter = gfx_tex_params::e_tf_linear;
+         //   prm.gen_mipmaps = true;
+
+         //   globe_tex = gfx::tex::new_tex_2d(gfx_tex::gen_id(), globe_tex_width, globe_tex_height, &prm);
+         //   globe["u_s2d_tex"] = globe_tex->get_name();
+         //}
 
          // globe tex quad
-         {
-            globe_tex_quad = std::make_shared<gfx_quad_2d>();
-            gfx_quad_2d& mq = *globe_tex_quad;
+         //{
+         //   globe_tex_quad = std::make_shared<gfx_quad_2d>();
+         //   gfx_quad_2d& mq = *globe_tex_quad;
 
-            mq.set_dimensions(1, 1);
-            mq.set_scale(globe_tex_width * TEX_SCALE, globe_tex_height * TEX_SCALE);
-            mq.set_translation(20, 20.f);
-            mq[MP_BLENDING] = MV_ALPHA;
-            //mq[MP_CULL_BACK] = false;
-            //mq[MP_DEPTH_TEST] = false;
-            mq[MP_SHADER_NAME] = "basic_tex";
-            mq["u_s2d_tex"] = globe_tex->get_name();
-            mq.camera_id_list.push_back(ux_cam->camera_id());
-         }
+         //   mq.set_dimensions(1, 1);
+         //   mq.set_scale(globe_tex_width * TEX_SCALE, globe_tex_height * TEX_SCALE);
+         //   mq.set_translation(20, 20.f);
+         //   mq[MP_BLENDING] = MV_ALPHA;
+         //   //mq[MP_CULL_BACK] = false;
+         //   //mq[MP_DEPTH_TEST] = false;
+         //   mq[MP_SHADER_NAME] = "basic_tex";
+         //   mq["u_s2d_tex"] = globe_tex->get_name();
+         //   mq.camera_id_list.clear();
+         //   mq.camera_id_list.push_back(ux_cam->camera_id());
+         //}
 
          build_globe_dots();
          build_globe_borders();
+         build_globe_spikes();
       }
 
       void build_globe_dots()
       {
-         double start_angle_rad = 0.;
-         double stop_angle_rad = glm::radians<double>(180.);
-         double equator_circumference = globe_tex_width;;
-         double unit_globe_radius = equator_circumference / (2. * glm::pi<double>());
-         int globe_dots_count = globe_dots.size();
-         globe_dot_vx dot;
+#if 0
 
-         for (int k = 0; k < globe_dots_count; k++)
+         double start_angle = 0.;
+         double stop_angle = 180.;
+         int lat_ring_count = 0;
+         int meridian_count = 480;
+         double pole_dot_size = globe_radius / 6000.;
+         double equator_dot_size = globe_radius / 200.;
+         double pole_dot_step = globe_radius / 200.;
+         double equator_dot_step = globe_radius / 100.;
+         double angle = start_angle + 0.01;
+         double equator_circumference = 2. * glm::pi<double>();
+         double globe_eq_circumference = 2. * glm::pi<double>() * globe_radius;
+         glm::vec3 globe_up(0, 1, 0);
+         globe_border_dot_vx dot;
+
+         while (angle <= stop_angle)
          {
-            globe_map_dot& md = globe_dots[k];
+            double angle_rad = glm::radians<double>(angle);
+            double small_circle_radius = glm::sin(angle_rad);
+            double small_circle_circumference = 2. * glm::pi<double>() * small_circle_radius;
+            double circle_circumference_prop = small_circle_circumference / equator_circumference;
+            double p = glm::sin(circle_circumference_prop * glm::sin(glm::pi<double>() / 2.));
+            double dot_size = (float)glm::mix<double>(pole_dot_size, equator_dot_size, p);
+            double step_size = (float)glm::mix<double>(pole_dot_step, equator_dot_step, p);
+            double angle_step = glm::degrees<double>((step_size) / (globe_eq_circumference) * 2. * glm::pi<double>());
+            float dot_half_size = float(dot_size * 0.5);
+            float latitude = float(angle + 90.f);
 
-#if defined USE_GLOBE_DOT_BORDER_MESHES
+            for (int l = 0; l < meridian_count; l++)
+            {
+               float longitude = glm::degrees(float(2. * glm::pi<double>() * double(l) / meridian_count));
 
-            float dot_half_width = float(2. * glm::pi<double>() * globe_radius / 2500.);
-            float dot_half_height = dot_half_width;
+               get_hot_spot_data(latitude, longitude, globe_radius, dot.pos, dot.nrm);
+               glm::vec3 pos = dot.pos;
+               glm::vec3 left = glm::normalize(glm::cross(dot.nrm, globe_up));
+               glm::vec3 up = glm::normalize(glm::cross(left, dot.nrm));
+
+               dot.pos = pos - left * dot_half_size + up * dot_half_size;
+               globe_dots_vertices.push_back(dot);
+               dot.pos = pos - left * dot_half_size - up * dot_half_size;
+               globe_dots_vertices.push_back(dot);
+               dot.pos = pos + left * dot_half_size - up * dot_half_size;
+               globe_dots_vertices.push_back(dot);
+               dot.pos = pos + left * dot_half_size + up * dot_half_size;
+               globe_dots_vertices.push_back(dot);
+            }
+
+            angle += angle_step;
+            lat_ring_count++;
+         }
+
+         int indices_size = lat_ring_count * meridian_count * 6;
+
+         vprint("lat_ring_count [%d] total dot count [%d]\n", lat_ring_count, lat_ring_count * meridian_count);
+         globe_dots_indices.resize(indices_size);
+
+         for (int k = 0, vx_idx = 0; k < indices_size;)
+         {
+            globe_dots_indices[k++] = vx_idx + 0;
+            globe_dots_indices[k++] = vx_idx + 2;
+            globe_dots_indices[k++] = vx_idx + 1;
+            globe_dots_indices[k++] = vx_idx + 2;
+            globe_dots_indices[k++] = vx_idx + 0;
+            globe_dots_indices[k++] = vx_idx + 3;
+            vx_idx += 4;
+         }
 
 #else
 
-            float dot_half_width = float(2. * glm::pi<double>() * globe_radius / 407.);
-            float dot_half_height = dot_half_width;
+         double start_angle_rad = 0.;
+         double stop_angle_rad = glm::radians<double>(180.);
+         double equator_circumference = globe_tex_width;
+         double unit_globe_radius = equator_circumference / (2. * glm::pi<double>());
+         int globe_dots_count = globe_dots.size();
+         glm::vec3 globe_up(0, 1, 0);
+         globe_border_dot_vx dot;
 
-            double p = (double)md.y / globe_tex_height;
-            double angle_rad = glm::mix<double>(start_angle_rad, stop_angle_rad, p);
-            double small_circle_radius = unit_globe_radius * glm::sin(angle_rad);
-            double small_circle_circumference = 2. * glm::pi<double>() * small_circle_radius;
-            double circle_circumference_prop = small_circle_circumference / equator_circumference;
+         for (int k = 0; k < globe_dots_count; k++)
+         {
+            globe_coord_dot& gc = globe_dots[k];
+            float dot_half_size = gc.size;
 
-            if (circle_circumference_prop > 0.)
-            {
-               dot_half_width = float(dot_half_height / circle_circumference_prop);
-            }
-            else
-            {
-               dot_half_width = globe_tex_width / 2.f;
-            }
+            get_hot_spot_data(gc.lat, gc.lng, globe_radius, dot.pos, dot.nrm);
 
-#endif
-
-#if defined USE_GLOBE_DOT_BORDER_MESHES
-
-            float latitude = float(angle + 90.f);
-            float longitude = glm::degrees(float(2. * glm::pi<double>() * double(x_offset + x_start) / width));
-
-            get_hot_spot_data(latitude, longitude, (float)globe_radius, dot.pos, dot.nrm);
             glm::vec3 pos = dot.pos;
             glm::vec3 left = glm::normalize(glm::cross(dot.nrm, globe_up));
             glm::vec3 up = glm::normalize(glm::cross(left, dot.nrm));
 
-#else
-
-            glm::vec3 pos(md.x, md.y, 0.f);
-            glm::vec3 left(-1, 0, 0);
-            glm::vec3 up(0, 1, 0);
-
-#endif
-
-            dot.pos = pos - left * dot_half_width + up * dot_half_height;
+            dot.pos = pos - left * dot_half_size + up * dot_half_size;
             globe_dots_vertices.push_back(dot);
-            dot.pos = pos - left * dot_half_width - up * dot_half_height;
+            dot.pos = pos - left * dot_half_size - up * dot_half_size;
             globe_dots_vertices.push_back(dot);
-            dot.pos = pos + left * dot_half_width - up * dot_half_height;
+            dot.pos = pos + left * dot_half_size - up * dot_half_size;
             globe_dots_vertices.push_back(dot);
-            dot.pos = pos + left * dot_half_width + up * dot_half_height;
+            dot.pos = pos + left * dot_half_size + up * dot_half_size;
             globe_dots_vertices.push_back(dot);
          }
 
@@ -1689,53 +1799,40 @@ namespace techno_globe_ns
             vx_idx += 4;
          }
 
-         int vx_size = sizeof(globe_dot_vx);
+#endif
+
+         int vx_size = sizeof(globe_border_dot_vx);
 
          gfx_vxo_util::set_mesh_data((const uint8*)&globe_dots_vertices[0], globe_dots_vertices.size() * vx_size,
             &globe_dots_indices[0], globe_dots_indices.size() * sizeof(uint32), globe_dots_vxo);
+
+         globe_dots_vertices.clear();
+         globe_dots_indices.clear();
+         globe_dots.clear();
       }
 
       void build_globe_borders()
       {
          int border_dots_count = border_dots.size();
+         double start_angle_rad = 0.;
+         double stop_angle_rad = glm::radians<double>(180.);
          glm::vec3 globe_up(0, 1, 0);
-         globe_dot_vx dot;
+         globe_border_dot_vx dot;
 
          for (int k = 0, vx_idx = 0; k < border_dots_count; k++)
          {
-#if defined USE_GLOBE_DOT_BORDER_MESHES
-
-            float dot_half_width = float(2. * glm::pi<double>() * globe_radius / 6500.);
+            float dot_half_width = float(2. * glm::pi<double>() * globe_radius / 8500.);
             float dot_half_height = dot_half_width;
-
-#else
-
-            float dot_half_width = float(2. * glm::pi<double>() * globe_radius / 1000.);
-            float dot_half_height = dot_half_width;
-
-#endif
-
-            globe_map_dot& md = border_dots[k];
-
-#if defined USE_GLOBE_DOT_BORDER_MESHES
-
-            float angle = float(k / double(height - 1.) * 180.);
-            float latitude = float(angle + 90.f);
-            float longitude = glm::degrees(float(2. * glm::pi<double>() * l / double(width - 1.)));
+            globe_border_dot& md = border_dots[k];
+            double p = (double)md.y / globe_tex_height;
+            double angle_rad = glm::mix<double>(stop_angle_rad, start_angle_rad, p);
+            float latitude = float(glm::degrees<double>(angle_rad) + 90.f);
+            float longitude = glm::degrees(float(2. * glm::pi<double>() * double(md.x) / globe_tex_width));
 
             get_hot_spot_data(latitude, longitude, (float)globe_radius, dot.pos, dot.nrm);
             glm::vec3 pos = dot.pos;
             glm::vec3 left = glm::normalize(glm::cross(dot.nrm, globe_up));
             glm::vec3 up = glm::normalize(glm::cross(left, dot.nrm));
-            tex_aspect_ratio = 1.f;
-
-#else
-
-            glm::vec3 pos(md.x, md.y, 0.f);
-            glm::vec3 left(-1, 0, 0);
-            glm::vec3 up(0, 1, 0);
-
-#endif
 
             dot.pos = pos - left * dot_half_width + up * dot_half_height;
             globe_borders_vertices.push_back(dot);
@@ -1755,17 +1852,108 @@ namespace techno_globe_ns
             vx_idx += 4;
          }
 
-         int vx_size = sizeof(globe_dot_vx);
+         int vx_size = sizeof(globe_border_dot_vx);
 
          gfx_vxo_util::set_mesh_data((const uint8*)&globe_borders_vertices[0], globe_borders_vertices.size() * vx_size,
             &globe_borders_indices[0], globe_borders_indices.size() * sizeof(uint32), globe_borders_vxo);
+
+         globe_borders_vertices.clear();
+         globe_borders_indices.clear();
+         border_dots.clear();
+      }
+
+      void build_globe_spikes()
+      {
+         RNG rng;
+         int globe_coords_size = globe_coords.size();
+         int spike_count = glm::min(500, globe_coords_size);
+
+         glm::vec3 globe_up(0, 1, 0);
+         glm::vec3 spike_right(1, 0, 0);
+         globe_border_dot_vx dot;
+         float spike_min_height = 1.f;
+         float spike_max_height = 8.f;
+         float spike_half_width = 0.1f;
+
+         for (int k = 0, vx_idx = 0; k < spike_count; k++)
+         {
+            int idx = rng.nextInt(globe_coords_size);
+            auto& coord = globe_coords[idx];
+            glm::vec3 pos;
+            glm::vec3 normal;
+            float spike_height = rng.range_float(spike_min_height, spike_max_height);
+            float base_size = 2.f * spike_height / spike_max_height;
+
+            get_hot_spot_data(coord.lat, coord.lng, globe_radius, pos, normal);
+
+            glm::vec3 base_left = glm::normalize(glm::cross(normal, globe_up));
+            glm::vec3 base_up = glm::normalize(glm::cross(base_left, normal));
+
+            // spikes
+            dot.pos = pos;
+            dot.nrm = normal;
+            dot.tx.x = -0.5f; dot.tx.y = spike_height;
+            globe_spikes_vertices.push_back(dot);
+            dot.nrm = normal;
+            dot.tx.x = -0.5f; dot.tx.y = 0;
+            globe_spikes_vertices.push_back(dot);
+            dot.nrm = normal;
+            dot.tx.x = 0.5f; dot.tx.y = 0;
+            globe_spikes_vertices.push_back(dot);
+            dot.nrm = normal;
+            dot.tx.x = 0.5f; dot.tx.y = spike_height;
+            globe_spikes_vertices.push_back(dot);
+
+            globe_spikes_indices.push_back(vx_idx + 0);
+            globe_spikes_indices.push_back(vx_idx + 2);
+            globe_spikes_indices.push_back(vx_idx + 1);
+            globe_spikes_indices.push_back(vx_idx + 2);
+            globe_spikes_indices.push_back(vx_idx + 0);
+            globe_spikes_indices.push_back(vx_idx + 3);
+
+            // spike bases
+            dot.pos = pos + base_left * base_size + base_up * base_size;
+            dot.tx.x = 0; dot.tx.y = 1;
+            globe_spike_bases_vertices.push_back(dot);
+            dot.pos = pos + base_left * base_size - base_up * base_size;
+            dot.tx.x = 0; dot.tx.y = 0;
+            globe_spike_bases_vertices.push_back(dot);
+            dot.pos = pos - base_left * base_size - base_up * base_size;
+            dot.tx.x = 1; dot.tx.y = 0;
+            globe_spike_bases_vertices.push_back(dot);
+            dot.pos = pos - base_left * base_size + base_up * base_size;
+            dot.tx.x = 1; dot.tx.y = 1;
+            globe_spike_bases_vertices.push_back(dot);
+
+            globe_spike_bases_indices.push_back(vx_idx + 0);
+            globe_spike_bases_indices.push_back(vx_idx + 2);
+            globe_spike_bases_indices.push_back(vx_idx + 1);
+            globe_spike_bases_indices.push_back(vx_idx + 2);
+            globe_spike_bases_indices.push_back(vx_idx + 0);
+            globe_spike_bases_indices.push_back(vx_idx + 3);
+
+            vx_idx += 4;
+         }
+
+         int vx_size = sizeof(globe_border_dot_vx);
+
+         gfx_vxo_util::set_mesh_data((const uint8*)&globe_spikes_vertices[0], globe_spikes_vertices.size() * vx_size,
+            &globe_spikes_indices[0], globe_spikes_indices.size() * sizeof(uint32), globe_spikes_vxo);
+
+         gfx_vxo_util::set_mesh_data((const uint8*)&globe_spike_bases_vertices[0], globe_spike_bases_vertices.size() * vx_size,
+            &globe_spike_bases_indices[0], globe_spike_bases_indices.size() * sizeof(uint32), globe_spike_bases_vxo);
+
+         globe_spikes_vertices.clear();
+         globe_spikes_vertices.clear();
+         globe_spike_bases_vertices.clear();
+         globe_spike_bases_indices.clear();
       }
 
       std::shared_ptr<pfm_file> res_file;
       std::shared_ptr<rw_file_sequence> res_rw;
       std::vector<globe_coord> globe_coords;
-      std::vector<globe_map_dot> border_dots;
-      std::vector<globe_map_dot> globe_dots;
+      std::vector<globe_border_dot> border_dots;
+      std::vector<globe_coord_dot> globe_dots;
 
       int globe_tex_width;
       int globe_tex_height;
@@ -1777,12 +1965,20 @@ namespace techno_globe_ns
       std::shared_ptr<gfx_quad_2d> globe_tex_quad;
 
       std::shared_ptr<gfx_vxo> globe_dots_vxo;
-      std::vector<globe_dot_vx> globe_dots_vertices;
+      std::vector<globe_border_dot_vx> globe_dots_vertices;
       std::vector<uint32> globe_dots_indices;
 
       std::shared_ptr<gfx_vxo> globe_borders_vxo;
-      std::vector<globe_dot_vx> globe_borders_vertices;
+      std::vector<globe_border_dot_vx> globe_borders_vertices;
       std::vector<uint32> globe_borders_indices;
+
+      std::shared_ptr<gfx_vxo> globe_spikes_vxo;
+      std::vector<globe_border_dot_vx> globe_spikes_vertices;
+      std::vector<uint32> globe_spikes_indices;
+
+      std::shared_ptr<gfx_vxo> globe_spike_bases_vxo;
+      std::vector<globe_border_dot_vx> globe_spike_bases_vertices;
+      std::vector<uint32> globe_spike_bases_indices;
 
       std::shared_ptr<master_resource_builder> mrb;
       std::shared_ptr<ux_camera> ux_cam;
@@ -1798,7 +1994,19 @@ namespace techno_globe_ns
       {
          ux_page::init();
 
-#if defined BUILD_RESOURCES
+         //{
+         //   auto csv_path = pfm::filesystem::get_path("simplemaps-worldcities-basic.csv");
+         //   auto drtf_path = pfm::filesystem::get_path("dummy-runtime-file");
+         //   auto res_path = mws_util::path::get_directory_from_path(csv_path);
+         //   std::string res_file_path = res_path + "/map.png";
+         //   auto res_file = pfm_file::get_inst(res_file_path);
+         //   const int width = 64;
+         //   const int height = 64;
+         //   uint32 res[width * height];
+         //   res_ld::inst()->save_image(res_file, width, height, (uint8*)res, res_ld::e_no_flip);
+         //}
+
+#if defined USES_RESOURCE_BUILDER
 
          mrb = std::make_shared<master_resource_builder>(get_unit()->ux_cam);
          mrb->build_resources();
@@ -1830,7 +2038,7 @@ namespace techno_globe_ns
 
             skb.set_dimensions(s, s, s);
             skb[MP_SHADER_NAME] = "sky-box";
-            skb["u_scm_skybox"] = "skybx";
+            skb["u_scm_tex"] = "skybx";
             skb[MP_CULL_BACK] = false;
             skb[MP_CULL_FRONT] = true;
          }
@@ -1840,28 +2048,22 @@ namespace techno_globe_ns
          scene->attach(persp_cam);
          scene->attach(skybox);
 
-#if defined USE_GLOBE_DOT_BORDER_MESHES
-
-         scene->attach(globe_dots_vxo);
-         scene->attach(globe_borders_vxo);
-
-#endif
+         scene->attach(rrb->globe_dots_vxo);
+         scene->attach(rrb->globe_borders_vxo);
 
          scene->attach(rrb->globe_vxo);
-         //globe_vxo->visible = false;
+         //rrb->globe_vxo->visible = false;
+         scene->attach(rrb->globe_spike_bases_vxo);
+         scene->attach(rrb->globe_spikes_vxo);
 
          if (mrb)
          {
             scene->attach(mrb->map_quad);
-            scene->attach(rrb->globe_tex_quad);
+            //scene->attach(rrb->globe_tex_quad);
 
             mrb->map_quad->visible = false;
-            rrb->globe_tex_quad->visible = false;
+            //rrb->globe_tex_quad->visible = false;
          }
-         scene->attach(rrb->globe_tex_quad);
-
-         rrb->globe_tex_quad->visible = false;
-
 
          cam_end_pos = glm::vec3(-100.f, 0.f, -200.f) * 0.75f;
          cam_start_pos = cam_end_pos * 3.2f;
@@ -1954,10 +2156,10 @@ namespace techno_globe_ns
       {
          ux_page::update_state();
 
-         rrb->globe_vxo->orientation = glm::quat(glm::vec3(0, t, 0));
-         rrb->globe_dots_vxo->orientation = rrb->globe_vxo->orientation;
-         rrb->globe_borders_vxo->orientation = rrb->globe_vxo->orientation;
-         t += 0.001f;
+         //rrb->globe_vxo->orientation = glm::quat(glm::vec3(0, t, 0));
+         //rrb->globe_dots_vxo->orientation = rrb->globe_vxo->orientation;
+         //rrb->globe_borders_vxo->orientation = rrb->globe_vxo->orientation;
+         //t += 0.001f;
 
          if (cam_slider.is_enabled())
          {
@@ -2072,6 +2274,46 @@ shared_ptr<unit_techno_globe> unit_techno_globe::new_instance()
 void unit_techno_globe::init_ux()
 {
    ux_page::new_shared_instance(new main_page(uxroot));
+}
+
+bool unit_techno_globe::update()
+{
+   //int updateCount = 1;//update_ctrl->update();
+
+   //for (int k = 0; k < updateCount; k++)
+   //{
+   //   touch_ctrl->update();
+   //   key_ctrl->update();
+   //   game_time += update_ctrl->getTimeStepDuration();
+   //}
+
+   ////gfx::rt::set_current_render_target(aa_rt);
+
+   //gfx_scene_inst->update();
+   //uxroot->update_state();
+
+   //gfx_scene_inst->draw();
+   //update_view(updateCount);
+
+   ////gfx::rt::set_current_render_target(nullptr);
+   //// blit screen to a texture
+   ////aa_tex->set_active(0);
+   ////glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, gfx::rt::get_screen_width(), gfx::rt::get_screen_height());
+   ////aa_quad->render_mesh(ux_cam);
+
+   //// update fps
+   //frame_count++;
+   //uint32 now = pfm::time::get_time_millis();
+   //uint32 dt = now - last_frame_time;
+
+   //if (dt >= 1000)
+   //{
+   //   fps = frame_count * 1000.f / dt;
+   //   last_frame_time = now;
+   //   frame_count = 0;
+   //}
+
+   return unit::update();
 }
 
 #endif

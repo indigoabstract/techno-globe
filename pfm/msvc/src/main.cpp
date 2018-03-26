@@ -179,6 +179,25 @@ shared_ptr<pfm_impl::pfm_file_impl> msvc_main::new_pfm_file_impl(const std::stri
 	return std::make_shared<msvc_file_impl>(ifilename, iroot_dir);
 }
 
+void msvc_main::init()
+{
+   pfm_main::init();
+
+   unit_ctrl::inst()->init_app();
+}
+
+void msvc_main::start()
+{
+   pfm_main::start();
+
+   unit_ctrl::inst()->start_app();
+}
+
+void msvc_main::run()
+{
+   unit_ctrl::inst()->update();
+}
+
 int msvc_main::get_screen_dpi()const
 {
    return 127;
@@ -377,14 +396,14 @@ bool msvc_main::init_app(int argc, char** argv)
 		std::ios_base::sync_with_stdio();
 	}
 
-	unit_ctrl::inst()->init_app();
+   init();
 
 	return true;
 }
 
 int msvc_main::main_loop()
 {
-	unit_ctrl::inst()->start_app();
+   start();
 
 	if(app_has_window)
 	{
@@ -522,7 +541,7 @@ int msvc_main::console_main_loop()
 
 		if(curTime >= nextUpdateTime)
 		{
-			unit_ctrl::inst()->update();
+         run();
 			nextUpdateTime = curTime + timerInterval;
 		}
 		else
@@ -562,7 +581,7 @@ int msvc_main::win_main_loop()
 
 		if(current_time >= next_update_time)
 		{
-			if(unit_ctrl::inst()->update())
+         run();
 			{
 				if(!disable_paint)
 				{
@@ -1303,7 +1322,7 @@ int get_key(int ikey)
 }
 
 
-int is_gl_extension_supported(const char* i_extension)
+int mws_is_gl_extension_supported(const char* i_extension)
 {
    GLboolean is_supported = (glewIsSupported(i_extension) == 0) ? 0 : 1;
 

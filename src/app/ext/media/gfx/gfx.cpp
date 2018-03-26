@@ -91,6 +91,19 @@ tex_info tex_info_tab[] =
 int tex_info_tab_length = sizeof(tex_info_tab) / sizeof(tex_info);
 std::unordered_map<std::string, tex_info*> tex_info_ht;
 
+void mws_tex_img_2d(GLenum target, GLint mipmap_count, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels)
+{
+#ifdef USES_GL_TEX_STORAGE_2D
+
+   glTexStorage2D(target, mipmap_count, internalformat, width, height);
+
+#else
+
+   glTexImage2D(target, 0, internalformat, width, height, border, format, type, pixels);
+
+#endif
+}
+
 bool gfx::is_init()
 {
    return inst != shared_ptr<gfx>();
@@ -100,6 +113,7 @@ void gfx::init()
 {
    if (!is_init())
    {
+      bool print_extensions = false;
       int gl_extension_count = -1;
       int gl_major_version = -1;
       int gl_minor_version = -1;
@@ -113,9 +127,10 @@ void gfx::init()
 
       vprint("gl-version [%d.%d] / [%s]\ngl-renderer [%s]\ngl-vendor [%s]\n", gl_major_version, gl_minor_version, version, renderer, vendor);
 
+#ifdef USES_GL_STRINGI
+
       if (gl_extension_count > 0)
       {
-         bool print_extensions = false;
          std::vector<const gfx_ubyte*> extensions;
 
          vprint("[%d] gl-extensions found.\n", gl_extension_count);
@@ -134,6 +149,44 @@ void gfx::init()
          vprint("\n");
       }
 
+#else
+
+      if (print_extensions)
+      {
+         const GLubyte* extensions = glGetString(GL_EXTENSIONS);
+         vprint("gl-extensions: %s\n", extensions);
+      }
+
+#endif
+
+      // color/depth/stencil buffer info
+      {
+         GLint red_bits = 0;
+         GLint green_bits = 0;
+         GLint blue_bits = 0;
+         GLint alpha_bits = 0;
+         GLint depth_bits = 0;
+         GLint stencil_bits = 0;
+
+         glGetIntegerv(GL_RED_BITS, &red_bits);
+         glGetIntegerv(GL_GREEN_BITS, &green_bits);
+         glGetIntegerv(GL_BLUE_BITS, &blue_bits);
+         glGetIntegerv(GL_ALPHA_BITS, &alpha_bits);
+         glGetIntegerv(GL_DEPTH_BITS, &depth_bits);
+         glGetIntegerv(GL_STENCIL_BITS, &stencil_bits);
+
+         vprint("red_bits [%d] green_bits [%d] blue_bits [%d] alpha_bits [%d] depth_bits [%d] stencil_bits [%d]\n",
+            red_bits, green_bits, blue_bits, alpha_bits, depth_bits, stencil_bits);
+      }
+
+      // samples
+      {
+         GLint samples = 0, max_samples = 0;
+         glGetIntegerv(GL_SAMPLES, &samples);
+         glGetIntegerv(GL_MAX_SAMPLES, &max_samples);
+         vprint("sample coverage: %d, max samples: %d\n", samples, max_samples);
+      }
+
       inst = shared_ptr<gfx>(new gfx());
 
       for (int k = 0; k < tex_info_tab_length; k++)
@@ -141,6 +194,23 @@ void gfx::init()
          tex_info& e = tex_info_tab[k];
          tex_info_ht[e.id] = &e;
       }
+
+      //int ms = 8;
+      //GLuint mTextureFramebuffer = 0;
+      //glGenRenderbuffers(1, &mTextureFramebuffer);
+      //glBindRenderbuffer(GL_RENDERBUFFER, mTextureFramebuffer);
+      //glRenderbufferStorageMultisample(GL_RENDERBUFFER, /* Number of samples */ ms, GL_R8, rt::get_screen_width(), rt::get_screen_height());
+      //GLenum err = glGetError();
+
+      //if (err != GL_NO_ERROR)
+      //{
+      //   bool MultisampleSupported = false;
+      //   vprint("MultisampleSupported %d false\n", ms);
+      //}
+      //else
+      //{
+      //   vprint("MultisampleSupported %d true\n", ms);
+      //}
 
       gfx_state_inst = shared_ptr<gfx_state>(new gfx_state());
       gfx_util::init();

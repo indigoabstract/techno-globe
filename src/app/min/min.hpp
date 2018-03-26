@@ -106,7 +106,10 @@ public:
 };
 
 
-class ia_exception : public std::exception
+class ia_exception
+#ifdef USES_EXCEPTIONS
+   : public std::exception
+#endif
 {
 public:
    ia_exception() throw();
@@ -196,7 +199,10 @@ public:
 };
 
 
-class mws_bad_any_cast : public std::bad_cast
+class mws_bad_any_cast
+#ifdef USES_EXCEPTIONS
+   : public std::bad_cast
+#endif
 {
 public:
    virtual const char* what() const throw()

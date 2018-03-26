@@ -243,6 +243,13 @@ void free_camera::update()
       look_at_dir = glm::normalize(target_ref_point - persp_cam->position());
 
       up_dir = glm::vec3(0, 1, 0);
+      float dot = glm::abs(glm::dot(look_at_dir, up_dir));
+
+      if (dot > 0.95)
+      {
+         int x = 3;
+      }
+
       glm::vec3 right_dir = glm::normalize(glm::cross(look_at_dir, up_dir));
       up_dir = glm::normalize(glm::cross(right_dir, look_at_dir));
       persp_cam->look_at_pos(target_ref_point, up_dir);

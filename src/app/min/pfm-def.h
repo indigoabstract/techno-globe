@@ -7,29 +7,44 @@
 
 	#define PLATFORM_ANDROID
 	#define UNICODE_USING_STD_STRING
+   #define USES_EXCEPTIONS
 
 #elif defined __APPLE__ && defined TARGET_OS_IPHONE
 
 	#define PLATFORM_IOS
 	#define UNICODE_USING_STD_STRING
+   #define USES_EXCEPTIONS
 
 #elif defined EMSCRIPTEN
 
 	#define PLATFORM_EMSCRIPTEN
 	#define UNICODE_USING_STD_STRING
+   //#define USES_EXCEPTIONS
 
 #elif defined PLATFORM_QT_WINDOWS_PC
 
 	#define UNICODE_USING_STD_WSTRING
+   #define USES_EXCEPTIONS
 
 #elif defined WIN32
 
 	#define PLATFORM_WINDOWS_PC
 	#define UNICODE_USING_STD_WSTRING
+   #define USES_EXCEPTIONS
 
 #else
 
 	#pragma error
+
+#endif
+
+
+#ifndef USES_EXCEPTIONS
+
+   #define throw
+   #define throw()
+   #define try          if(true)
+   #define catch(...)   if(false)
 
 #endif
 

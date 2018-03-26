@@ -27,7 +27,10 @@ class msvc_main : public pfm_main
 public:
 	virtual ~msvc_main();
 	static shared_ptr<msvc_main> get_instance();
-	static shared_ptr<pfm_impl::pfm_file_impl> new_pfm_file_impl(const std::string& ifilename, const std::string& iroot_dir);
+   static shared_ptr<pfm_impl::pfm_file_impl> new_pfm_file_impl(const std::string& ifilename, const std::string& iroot_dir);
+   virtual void init() override;
+   virtual void start() override;
+   virtual void run() override;
    virtual int get_screen_dpi()const;
    virtual void write_text(const char* text)const;
 	virtual void write_text_nl(const char* text)const;

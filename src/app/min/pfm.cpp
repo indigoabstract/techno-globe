@@ -155,6 +155,25 @@ namespace pfm_impl
 {
 	umf_list res_files_map;
 
+   void print_type_sizes()
+   {
+      vprint("print type sizes\n");
+      vprint("sizeof int8 [%d]\n", sizeof(int8));
+      vprint("sizeof sint8 [%d]\n", sizeof(sint8));
+      vprint("sizeof uint8 [%d]\n", sizeof(uint8));
+      vprint("sizeof int16 [%d]\n", sizeof(int16));
+      vprint("sizeof sint16 [%d]\n", sizeof(sint16));
+      vprint("sizeof uint16 [%d]\n", sizeof(uint16));
+      vprint("sizeof int32 [%d]\n", sizeof(int32));
+      vprint("sizeof sint32 [%d]\n", sizeof(sint32));
+      vprint("sizeof uint32 [%d]\n", sizeof(uint32));
+      vprint("sizeof int64 [%d]\n", sizeof(int64));
+      vprint("sizeof sint64 [%d]\n", sizeof(sint64));
+      vprint("sizeof uint64 [%d]\n", sizeof(uint64));
+      vprint("sizeof real32 [%d]\n", sizeof(real32));
+      vprint("sizeof real64 [%d]\n", sizeof(real64));
+   }
+
    //true if res is in the same dir as src
    bool res_is_bundled_with_src()
    {
@@ -865,6 +884,19 @@ pfm_data::pfm_data()
 
 pfm_data pfm::data;
 
+
+void pfm_main::init()
+{
+   //pfm_impl::print_type_sizes();
+}
+
+void pfm_main::start()
+{
+}
+
+void pfm_main::run()
+{
+}
 
 bool pfm_main::back_evt()
 {

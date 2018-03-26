@@ -1,5 +1,6 @@
 #include "main.hpp"
 
+#include "pfmgl.h"
 #include "pfm.hpp"
 #include "unit-ctrl.hpp"
 #include "com/unit/input-ctrl.hpp"
@@ -61,7 +62,7 @@ public:
    {
       std::string path = ppath.get_full_path();
       FILE* file = fopen(path.c_str(), iopen_mode.c_str());
-      vprint("open_impl: opening external file %s\n", path.c_str());
+      //vprint("open_impl: opening external file %s\n", path.c_str());
 
       return file;
    }
@@ -113,6 +114,30 @@ std::shared_ptr<emst_main> emst_main::get_instance()
 std::shared_ptr<pfm_impl::pfm_file_impl> emst_main::new_pfm_file_impl(const std::string& ifilename, const std::string& iroot_dir)
 {
    return std::make_shared<emst_file_impl>(ifilename, iroot_dir);
+}
+
+void emst_main::init()
+{
+   pfm_main::init();
+
+   setup_callbacks();
+   unit_ctrl::inst()->pre_init_app();
+   unit_ctrl::inst()->set_gfx_available(true);
+   unit_ctrl::inst()->init_app();
+
+   is_started = true;
+}
+
+void emst_main::start()
+{
+   pfm_main::start();
+
+   unit_ctrl::inst()->start_app();
+}
+
+void emst_main::run()
+{
+   unit_ctrl::inst()->update();
 }
 
 int emst_main::get_screen_dpi()const
@@ -176,10 +201,16 @@ umf_list emst_main::get_directory_listing(const std::string& idirectory, umf_lis
       key = "basic_tex.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "c_o.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "c_o.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      key = "fxaa.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      key = "fxaa.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "globe-border.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "globe-border.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "globe-dot.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "globe-dot.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      key = "globe-spike.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      key = "globe-spike.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      key = "globe-spike-base.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      key = "globe-spike-base.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "hot-spot-lines.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "hot-spot-lines.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "sky-box.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
@@ -204,26 +235,6 @@ bool emst_main::is_full_screen_mode()
 
 void emst_main::set_full_screen_mode(bool ienabled)
 {
-}
-
-void emst_main::init()
-{
-   setup_callbacks();
-   unit_ctrl::inst()->pre_init_app();
-   unit_ctrl::inst()->set_gfx_available(true);
-   unit_ctrl::inst()->init_app();
-
-   is_started = true;
-}
-
-void emst_main::start()
-{
-   unit_ctrl::inst()->start_app();
-}
-
-void emst_main::run()
-{
-   unit_ctrl::inst()->update();
 }
 
 emst_main::emst_main()
@@ -467,22 +478,6 @@ void mws_get_canvas_size(int* width, int* height, int* is_full_screen)
    *is_full_screen = e.isFullscreen;
 }
 
-// void draw()
-// {
-  // int width, height, is_full_screen;
-  // mws_get_canvas_size(&width, &height, &is_full_screen);
-  // float t = emscripten_get_now() / 1000.0f;
-  // float xs = (float)height / width;
-  // float ys = 1.0f;
-  // float mat[] = { cosf(t) * xs, sinf(t) * ys, 0, 0, -sinf(t) * xs, cosf(t) * ys, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
-  // glUniformMatrix4fv(glGetUniformLocation(program, "mat"), 1, 0, mat);
-  // glClearColor(0,0,1,1);
-  // glClear(GL_COLOR_BUFFER_BIT);
-  // glDrawArrays(GL_TRIANGLES, 0, 3);
-
-   // emst_main::get_instance()->run();
-// }
-
 EM_BOOL on_canvassize_changed(int event_type, const void* reserved, void* user_data)
 {
    int width, height, fs;
@@ -549,27 +544,6 @@ int on_button_click(int event_type, const EmscriptenMouseEvent *mouseEvent, void
    return 1;
 }
 
-//void load_file(const char* filename)
-//{
-//   FILE *file = fopen(filename, "rb");
-//   if (!file)
-//   {
-//      printf("cannot open file\n");
-//      return;
-//   }
-//
-//   while (!feof(file))
-//   {
-//      char c = fgetc(file);
-//      if (c != EOF)
-//      {
-//         putchar(c);
-//      }
-//   }
-//
-//   fclose(file);
-//}
-
 void run_step()
 {
    emst_main::get_instance()->run();
@@ -582,41 +556,29 @@ int main()
    EmscriptenWebGLContextAttributes attr;
 
    emscripten_webgl_init_context_attributes(&attr);
-   attr.alpha = attr.depth = attr.stencil = attr.preserveDrawingBuffer = attr.preferLowPowerToHighPerformance = attr.failIfMajorPerformanceCaveat = 0;
-   attr.antialias = 1;
+   attr.alpha = attr.stencil = attr.preserveDrawingBuffer = attr.preferLowPowerToHighPerformance = attr.failIfMajorPerformanceCaveat = 0;
+   attr.antialias = attr.depth = 1;
    attr.enableExtensionsByDefault = 1;
    attr.premultipliedAlpha = 0;
+   //attr.alpha = 1;
+
+#if OPENGL_ES_VERSION == OPENGL_ES_2_0
+
+   attr.majorVersion = 1;
+   attr.minorVersion = 0;
+
+#elif OPENGL_ES_VERSION == OPENGL_ES_3_0
+
    attr.majorVersion = 2;
    attr.minorVersion = 0;
+
+#endif // OPENGL_ES_VERSION == OPENGL_ES_2_0
+
    EMSCRIPTEN_WEBGL_CONTEXT_HANDLE ctx = emscripten_webgl_create_context(0, &attr);
    emscripten_webgl_make_context_current(ctx);
 
    EM_BOOL anisotropy_enabled = emscripten_webgl_enable_extension(ctx, "EXT_texture_filter_anisotropic");
    printf("anisotropy enabled: %d\n", anisotropy_enabled);
-
-   // GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-   // const char *vss = "attribute vec4 vPosition; uniform mat4 mat; void main() { gl_Position = mat * vPosition; }";
-   // glShaderSource(vs, 1, &vss, 0);
-   // glCompileShader(vs);
-   // GLuint ps = glCreateShader(GL_FRAGMENT_SHADER);
-   // const char *pss = "precision lowp float; uniform vec3 colors[3]; void main() { gl_FragColor = vec4(1,0,0,1); }";
-   // glShaderSource(ps, 1, &pss, 0);
-   // glCompileShader(ps);
-   // program = glCreateProgram();
-   // glAttachShader(program, vs);
-   // glAttachShader(program, ps);
-   // glBindAttribLocation(program, 0, "vPosition");
-   // glLinkProgram(program);
-   // glUseProgram(program);
-
-   // GLuint vbo;
-   // glGenBuffers(1, &vbo);
-   // glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-   // float verts[] = { 0.0, 0.5, 0.0, -0.5, -0.5, 0.0, 0.5, -0.5, 0.0 };
-   // glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
-   // glVertexAttribPointer(0, 3, GL_FLOAT, 0, 0, 0);
-   // glEnableVertexAttribArray(0);
 
    EMSCRIPTEN_RESULT ret = emscripten_set_keypress_callback(0, 0, 1, key_callback);
    TEST_RESULT(emscripten_set_keypress_callback);
@@ -637,23 +599,23 @@ int main()
    ret = emscripten_set_dblclick_callback(0, 0, 1, mouse_callback);
    TEST_RESULT(emscripten_set_dblclick_callback);
 
-   emscripten_set_click_callback("b0", (void*)0, 1, on_button_click);
-   emscripten_set_click_callback("b1", (void*)1, 1, on_button_click);
-   emscripten_set_click_callback("b2", (void*)2, 1, on_button_click);
-   emscripten_set_click_callback("b3", (void*)3, 1, on_button_click);
-   emscripten_set_click_callback("b4", (void*)4, 1, on_button_click);
-   emscripten_set_click_callback("b5", (void*)5, 1, on_button_click);
-   emscripten_set_click_callback("b6", (void*)6, 1, on_button_click);
-   emscripten_set_click_callback("b7", (void*)7, 1, on_button_click);
-   emscripten_set_click_callback("b8", (void*)8, 1, on_button_click);
-   emscripten_set_click_callback("b9", (void*)9, 1, on_button_click);
-   emscripten_set_click_callback("b10", (void*)10, 1, on_button_click);
-   emscripten_set_click_callback("b11", (void*)11, 1, on_button_click);
-   emscripten_set_click_callback("b12", (void*)12, 1, on_button_click);
-   emscripten_set_click_callback("b13", (void*)13, 1, on_button_click);
-   emscripten_set_click_callback("b14", (void*)14, 1, on_button_click);
-   emscripten_set_click_callback("b15", (void*)15, 1, on_button_click);
-   emscripten_set_click_callback("b16", (void*)16, 1, on_button_click);
+   //emscripten_set_click_callback("b0", (void*)0, 1, on_button_click);
+   //emscripten_set_click_callback("b1", (void*)1, 1, on_button_click);
+   //emscripten_set_click_callback("b2", (void*)2, 1, on_button_click);
+   //emscripten_set_click_callback("b3", (void*)3, 1, on_button_click);
+   //emscripten_set_click_callback("b4", (void*)4, 1, on_button_click);
+   //emscripten_set_click_callback("b5", (void*)5, 1, on_button_click);
+   //emscripten_set_click_callback("b6", (void*)6, 1, on_button_click);
+   //emscripten_set_click_callback("b7", (void*)7, 1, on_button_click);
+   //emscripten_set_click_callback("b8", (void*)8, 1, on_button_click);
+   //emscripten_set_click_callback("b9", (void*)9, 1, on_button_click);
+   //emscripten_set_click_callback("b10", (void*)10, 1, on_button_click);
+   //emscripten_set_click_callback("b11", (void*)11, 1, on_button_click);
+   //emscripten_set_click_callback("b12", (void*)12, 1, on_button_click);
+   //emscripten_set_click_callback("b13", (void*)13, 1, on_button_click);
+   //emscripten_set_click_callback("b14", (void*)14, 1, on_button_click);
+   //emscripten_set_click_callback("b15", (void*)15, 1, on_button_click);
+   //emscripten_set_click_callback("b16", (void*)16, 1, on_button_click);
 
    printf("To finish this test, press f to enter fullscreen mode, and then exit it.\n");
    printf("On IE, press a mouse key over the canvas after pressing f to activate the fullscreen request event.\n");

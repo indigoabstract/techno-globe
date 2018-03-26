@@ -9,6 +9,9 @@ public:
    virtual ~emst_main();
    static shared_ptr<emst_main> get_instance();
    static shared_ptr<pfm_impl::pfm_file_impl> new_pfm_file_impl(const std::string& ifilename, const std::string& iroot_dir);
+   virtual void init() override;
+   virtual void start() override;
+   virtual void run() override;
    virtual int get_screen_dpi()const;
    virtual void write_text(const char* text)const;
    virtual void write_text_nl(const char* text)const;
@@ -19,9 +22,6 @@ public:
    umf_list get_directory_listing(const std::string& idirectory, umf_list iplist, bool is_recursive);
    virtual bool is_full_screen_mode();
    virtual void set_full_screen_mode(bool ienabled);
-   void init();
-   void start();
-   void run();
 
 private:
    emst_main();

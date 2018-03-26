@@ -8,7 +8,6 @@ const vec4 u_v4_diffuse_color = vec4(1.0, 1.0, 1.0, 1.0);
 const vec4 u_v4_specular_color = vec4(1.0, 1.0, 1.0, 1.0);
 const float u_f_shininess = 55.0;
 
-uniform sampler2D u_s2d_tex;
 //uniform vec3 u_v3_light_dir;
 vec3 u_v3_light_dir = -vec3(0., 1., 0.);
 
@@ -26,7 +25,7 @@ void main()
   float fogAmount = exp2(-fogDistance * attenuation);
   const vec3 fogColor = vec3(.0); // white
   
-	vec4 v4_color = texture2D(u_s2d_tex, v_v2_tex_coord);
+	vec4 v4_color = vec4(0., 1., 1., 0.02);
 	float v1_alpha = v4_color.a;
 	vec3 v3_normal = normalize(v_v3_normal);
 	float f_diffuse_fact = clamp(dot(-u_v3_light_dir, v3_normal), 0.0, 1.0);

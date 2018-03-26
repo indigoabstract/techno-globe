@@ -9,6 +9,22 @@
 class gfx_shader;
 class gfx_shader_impl;
 
+
+// fast shortcuts for standard/predefined uniforms
+enum class gfx_std_uni
+{
+   u_m4_model,
+   u_m4_model_view,
+   u_m4_model_view_proj,
+   u_m4_projection,
+   u_m4_view,
+   u_m4_view_inv,
+   u_s2d_tex,
+   u_scm_tex,
+   u_v4_color,
+};
+
+
 // avoid using this if shader contains preprocessing macros
 // on android, line s containing #ifdef GL_ES seem to get left out,
 // which means the shader will FAIL to compile
@@ -153,7 +169,9 @@ public:
    const std::string& get_vertex_shader_file_name();
    const std::string& get_vertex_shader_name();
    unsigned int get_program_id();
-   void update_uniform(std::string iuni_name, const void* ival);
+   void update_uniform(gfx_std_uni i_std_uni, const void* i_val);
+   // SLOWEST method for updating uniforms!
+   void update_uniform(std::string i_uni_name, const void* i_val);
    std::shared_ptr<gfx_input> get_param(std::string ikey);
    std::shared_ptr<gfx_input> remove_param(std::string ikey);
    gfx_int get_param_location(std::string ikey);
@@ -168,6 +186,7 @@ private:
    gfx_shader(const std::string& iprg_name, std::shared_ptr<gfx> i_gi = nullptr);
    void release();
    bool make_current();
+   void update_uniform(std::shared_ptr<gfx_input> i_input, const void* i_val);
    static void init();
 
    std::shared_ptr<gfx_shader_impl> p;
