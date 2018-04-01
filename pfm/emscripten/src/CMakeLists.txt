@@ -9,6 +9,7 @@ add_executable (app "${CMAKE_CURRENT_LIST_DIR}/main.cpp")
 target_link_libraries(app app_plex_main)
 target_link_libraries(app_plex_main ${PNG_LIB})
 target_link_libraries(app_plex_main ${ZLIB_LIB})
+target_link_libraries(app_plex_main ${FREETYPE_LIB})
 
 # Creates a folder "executables" and adds target 
 # project (app.vcproj) under it

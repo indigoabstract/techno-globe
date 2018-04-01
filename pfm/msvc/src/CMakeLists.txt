@@ -10,7 +10,6 @@ target_link_libraries (app app_plex_main)
 target_link_libraries (app ${GLEW_LIB})
 target_link_libraries (app ${PNG_LIB})
 target_link_libraries (app ${ZLIB_LIB})
-target_link_libraries (app ${FMODEX_LIB})
 target_link_libraries (app ${FREETYPE_LIB})
 
 # Creates a folder "executables" and adds target 
