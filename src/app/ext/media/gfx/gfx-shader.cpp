@@ -613,7 +613,7 @@ unsigned int gfx_shader::get_program_id()
    return p->program_id;
 }
 
-void gfx_shader::update_uniform(std::shared_ptr<gfx_input> i_input, const void* i_val)
+void gfx_shader::update_uniform(std::shared_ptr<gfx_input> i_input, const mws_any* i_val)
 {
    if (i_input && i_input->get_location() != -1)
    {
@@ -622,6 +622,93 @@ void gfx_shader::update_uniform(std::shared_ptr<gfx_input> i_input, const void* 
       gfx_int loc_idx = i_input->get_location();
       gfx_int array_size = i_input->get_array_size();
       gfx_input::e_data_type dt = i_input->get_data_type();
+
+      switch (dt)
+      {
+      case gfx_input::bvec1:
+      case gfx_input::bvec2:
+      case gfx_input::bvec3:
+      case gfx_input::bvec4:
+      case gfx_input::ivec1:
+      case gfx_input::ivec2:
+      case gfx_input::ivec3:
+      case gfx_input::ivec4:
+         throw ia_exception("glsl_program::update_uniform n/i");
+         break;
+
+      case gfx_input::vec1:
+         glUniform1fv(loc_idx, array_size, &mws_any_cast<float>(*i_val));
+         break;
+
+      case gfx_input::vec2:
+         glUniform2fv(loc_idx, array_size, &mws_any_cast<glm::vec2>(*i_val).x);
+         break;
+
+      case gfx_input::vec3:
+         glUniform3fv(loc_idx, array_size, &mws_any_cast<glm::vec3>(*i_val).x);
+         break;
+
+      case gfx_input::vec3_array:
+      {
+         const std::vector<glm::vec3>& v = mws_any_cast<std::vector<glm::vec3> >(*i_val);
+         glUniform3fv(loc_idx, v.size(), (gfx_float*)v.data());
+         break;
+      }
+
+      case gfx_input::vec4:
+         glUniform4fv(loc_idx, array_size, &mws_any_cast<glm::vec4>(*i_val).x);
+         break;
+
+      case gfx_input::mat2:
+         glUniformMatrix2fv(loc_idx, array_size, false, &mws_any_cast<glm::mat2>(*i_val)[0].x);
+         break;
+
+      case gfx_input::mat3:
+         glUniformMatrix3fv(loc_idx, array_size, false, &mws_any_cast<glm::mat3>(*i_val)[0].x);
+         break;
+
+      case gfx_input::mat4:
+         glUniformMatrix4fv(loc_idx, array_size, false, &mws_any_cast<glm::mat4>(*i_val)[0].x);
+         break;
+
+      case gfx_input::s2d:
+         glUniform1i(loc_idx, mws_any_cast<int>(*i_val));
+         break;
+      }
+
+      mws_report_gfx_errs();
+   }
+}
+
+void gfx_shader::update_uniform(gfx_std_uni i_std_uni, const mws_any* i_val)
+{
+   if (!(p->is_validated && p->is_activated))
+   {
+      //vprint("can't update uniform for [%s]\n", get_program_name().c_str());
+      return;
+   }
+
+   update_uniform(std::shared_ptr<gfx_input>(), i_val);
+}
+
+void gfx_shader::update_uniform(std::string i_uni_name, const void* i_val)
+{
+   if (!(p->is_validated && p->is_activated))
+   {
+      //vprint("can't update uniform for [%s]\n", get_program_name().c_str());
+      return;
+   }
+
+
+   std::shared_ptr<gfx_input> input = get_param(i_uni_name);
+
+   if (input && input->get_location() != -1)
+   {
+      mws_report_gfx_errs();
+
+      gfx_int loc_idx = input->get_location();
+      gfx_int array_size = input->get_array_size();
+      gfx_input::e_data_type dt = input->get_data_type();
 
       switch (dt)
       {
@@ -675,23 +762,12 @@ void gfx_shader::update_uniform(std::shared_ptr<gfx_input> i_input, const void* 
          glUniform1i(loc_idx, *(gfx_int*)i_val);
          break;
       }
-
-      mws_report_gfx_errs();
-   }
-}
-
-void gfx_shader::update_uniform(gfx_std_uni i_std_uni, const void* i_val)
-{
-   if (!(p->is_validated && p->is_activated))
-   {
-      //vprint("can't update uniform for [%s]\n", get_program_name().c_str());
-      return;
    }
 
-   update_uniform(std::shared_ptr<gfx_input>(), i_val);
+   mws_report_gfx_errs();
 }
 
-void gfx_shader::update_uniform(std::string i_uni_name, const void* i_val)
+void gfx_shader::update_uniform(std::string i_uni_name, const mws_any* i_val)
 {
    if (!(p->is_validated && p->is_activated))
    {

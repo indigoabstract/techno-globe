@@ -975,34 +975,8 @@ void unit::setInit(bool isInit0)
 
 void unit::update_view(int update_count)
 {
-   //shared_ptr<ux_camera> gfx = gfx_openvg::get_instance();
-   //sprenderer r = renderer::get_instance();
-   //glm::mat4 cam, tm;
-   //cam = glm::ortho(0.f, (float)get_width(), (float)get_height(), 0.f, -1.f, 1000.f);
-   //r->mx.set_projection_matrix(cam);
-   //r->mx.set_view_matrix(tm);
-
-   //decl_scglpl(pl1)
-   //{
-   //	{gl::CULL_FACE, gl::FALSE_GL}, {gl::DEPTH_TEST, gl::FALSE_GL},
-   //	{gl::DEPTH_WRITEMASK, gl::FALSE_GL}, {gl::VERTEX_ARRAY, gl::TRUE_GL},
-   //	{gl::COLOR_ARRAY, gl::FALSE_GL}, {gl::NORMAL_ARRAY, gl::FALSE_GL}, 
-   //	{gl::TEXTURE_COORD_ARRAY, gl::FALSE_GL}, {gl::TEXTURE_2D, gl::FALSE_GL},
-   //	{},
-   //};
-   //r->st.set_state(pl1);
-
    shared_ptr<ux_camera> gfx = ux_cam;
-   //gfx->sync_with_openvg();
    uxroot->update_view(gfx);
-
-   //r->mx.set_projection_matrix(cam);
-   //r->mx.set_view_matrix(tm);
-
-   //if(prefs->show_onscreen_console())
-   //{
-   //	pfm::get_console()->draw(gfx);
-   //}
 
    if (prefs->draw_touch_symbols_trail() && !touch_ctrl->is_pointer_released())
    {
@@ -1020,6 +994,8 @@ void unit::update_view(int update_count)
       }
    }
 
+#ifdef MWS_DEBUG_BUILD
+
    if (fps > 0 && !storage.is_recording_screen())
    {
       float ups = 1000.f / update_ctrl->getTimeStepDuration();
@@ -1029,7 +1005,7 @@ void unit::update_view(int update_count)
       gfx->drawText(f, get_width() - txt_dim.x, 0.f);
    }
 
-   //signal_opengl_error();
+#endif // MWS_DEBUG_BUILD
 }
 
 

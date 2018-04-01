@@ -8,6 +8,7 @@
 
 class gfx_shader;
 class gfx_shader_impl;
+class mws_any;
 
 
 // fast shortcuts for standard/predefined uniforms
@@ -169,9 +170,10 @@ public:
    const std::string& get_vertex_shader_file_name();
    const std::string& get_vertex_shader_name();
    unsigned int get_program_id();
-   void update_uniform(gfx_std_uni i_std_uni, const void* i_val);
+   void update_uniform(gfx_std_uni i_std_uni, const mws_any* i_val);
    // SLOWEST method for updating uniforms!
    void update_uniform(std::string i_uni_name, const void* i_val);
+   void update_uniform(std::string i_uni_name, const mws_any* i_val);
    std::shared_ptr<gfx_input> get_param(std::string ikey);
    std::shared_ptr<gfx_input> remove_param(std::string ikey);
    gfx_int get_param_location(std::string ikey);
@@ -186,7 +188,7 @@ private:
    gfx_shader(const std::string& iprg_name, std::shared_ptr<gfx> i_gi = nullptr);
    void release();
    bool make_current();
-   void update_uniform(std::shared_ptr<gfx_input> i_input, const void* i_val);
+   void update_uniform(std::shared_ptr<gfx_input> i_input, const mws_any* i_val);
    static void init();
 
    std::shared_ptr<gfx_shader_impl> p;

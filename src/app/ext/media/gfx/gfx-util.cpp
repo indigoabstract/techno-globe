@@ -190,35 +190,6 @@ void gfx_util::draw_tex(shared_ptr<gfx_tex> itex, float itx, float ity, float iw
    }
 }
 
-void gfx_util::check_gfx_error_impl(const char* file, uint32 line)
-{
-#if defined MWS_REPORT_GL_ERRORS
-
-   //if debug build
-   {
-      int error_code = glGetError();
-
-      if (error_code != 0)
-      {
-         if (gl_error_code_list.find(error_code) != gl_error_code_list.end())
-         {
-            std::string error_name = gl_error_code_list[error_code];
-            std::string error_desc = gl_error_list[error_name];
-
-            vprint("gl error in file [%s] at line [%d] code [%d / 0x%x] name [%s] desc [%s]\n", file, line, error_code, error_code, error_name.c_str(), error_desc.c_str());
-         }
-         else
-         {
-            vprint("gl error in file [%s] at line [%d] code [%d / 0x%x]\n", file, line, error_code, error_code);
-         }
-
-         ia_signal_error();
-      }
-   }
-
-#endif
-}
-
 // http://lolengine.net/blog/2014/02/24/quaternion-from-two-vectors-final
 // Build a unit quaternion representing the rotation from u to v. The input vectors need not be normalised.
 glm::quat gfx_util::quat_from_two_vectors(glm::vec3 u, glm::vec3 v)
@@ -285,4 +256,33 @@ uint32 gfx_util::next_power_of_2(uint32 in)
    in |= in >> 1;
 
    return in + 1;
+}
+
+void mws_report_gfx_errs_impl(const char* i_file, uint32 i_line)
+{
+#if defined MWS_REPORT_GL_ERRORS
+
+   //if debug build
+   {
+      int error_code = glGetError();
+
+      if (error_code != 0)
+      {
+         if (gl_error_code_list.find(error_code) != gl_error_code_list.end())
+         {
+            std::string error_name = gl_error_code_list[error_code];
+            std::string error_desc = gl_error_list[error_name];
+
+            mws_print("gl error in file [%s] at line [%d] code [%d / 0x%x] name [%s] desc [%s]\n", i_file, i_line, error_code, error_code, error_name.c_str(), error_desc.c_str());
+         }
+         else
+         {
+            mws_print("gl error in file [%s] at line [%d] code [%d / 0x%x]\n", i_file, i_line, error_code, error_code);
+         }
+
+         ia_signal_error();
+      }
+   }
+
+#endif
 }

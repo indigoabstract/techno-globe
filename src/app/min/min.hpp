@@ -212,8 +212,9 @@ public:
 };
 
 
-struct mws_any
+class mws_any
 {
+public:
    mws_any() = default;
    template <typename T> mws_any(T const& v) : storage_ptr(new storage<T>(v)) {}
    mws_any(mws_any const& other) : storage_ptr(other.storage_ptr ? std::move(other.storage_ptr->clone()) : nullptr) {}
@@ -222,6 +223,7 @@ struct mws_any
    friend void swap(mws_any& a, mws_any& b) { a.swap(b); };
    mws_any& operator=(mws_any other) { swap(other); return *this; }
    bool empty() { return storage_ptr == nullptr; }
+   void clear() { storage_ptr = nullptr; }
 
 private:
    struct storage_base
@@ -244,22 +246,26 @@ private:
 
 template <typename T> T& mws_any_cast(mws_any& a)
 {
-   if (auto p = dynamic_cast<mws_any::storage<T>*>(a.storage_ptr.get()))
-   {
-      return p->value;
-   }
+   //if (auto p = dynamic_cast<mws_any::storage<T>*>(a.storage_ptr.get()))
+   //{
+   //   return p->value;
+   //}
 
-   throw mws_bad_any_cast();
+   //throw mws_bad_any_cast();
+   auto p = (mws_any::storage<T>*)(a.storage_ptr.get());
+   return p->value;
 }
 
 template <typename T> T const& mws_any_cast(mws_any const& a)
 {
-   if (auto p = dynamic_cast<mws_any::storage<T> const*>(a.storage_ptr.get()))
-   {
-      return p->value;
-   }
+   //if (auto p = dynamic_cast<mws_any::storage<T> const*>(a.storage_ptr.get()))
+   //{
+   //   return p->value;
+   //}
 
-   throw mws_bad_any_cast();
+   //throw mws_bad_any_cast();
+   auto p = (mws_any::storage<T>*)(a.storage_ptr.get());
+   return p->value;
 }
 
 

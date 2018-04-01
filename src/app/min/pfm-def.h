@@ -11,7 +11,7 @@ extern "C"
 
    #define MWS_DEBUG_BUILD
    #define MWS_REPORT_GL_ERRORS
-   #define mws_report_gfx_errs() gfx_util::check_gfx_error_impl(__FILE__, __LINE__)
+   #define mws_report_gfx_errs() mws_report_gfx_errs_impl(__FILE__, __LINE__)
    #define mws_print(i_format, ...) mws_print_impl(i_format, ##__VA_ARGS__)
 
 #else
@@ -21,9 +21,6 @@ extern "C"
    #define mws_print(i_format, ...)
 
 #endif
-
-
-void mws_print_impl(const char* i_format, ...);
 
 
 // determine compile target platform
@@ -132,6 +129,10 @@ typedef uint32 gfx_indices_type;
 #if defined PLATFORM_WINDOWS_PC && defined _DEBUG
 	//#define USE_VLD
 #endif
+
+
+void mws_report_gfx_errs_impl(const char* i_file, uint32 i_line);
+void mws_print_impl(const char* i_format, ...);
 
 
 // input defines
