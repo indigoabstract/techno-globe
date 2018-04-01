@@ -12,7 +12,7 @@ extern "C"
    #define MWS_DEBUG_BUILD
    #define MWS_REPORT_GL_ERRORS
    #define mws_report_gfx_errs() gfx_util::check_gfx_error_impl(__FILE__, __LINE__)
-   void mws_print(const char* i_format, ...);
+   #define mws_print(i_format, ...) mws_print_impl(i_format, ##__VA_ARGS__)
 
 #else
 
@@ -21,6 +21,9 @@ extern "C"
    #define mws_print(i_format, ...)
 
 #endif
+
+
+void mws_print_impl(const char* i_format, ...);
 
 
 // determine compile target platform

@@ -1231,7 +1231,7 @@ std::wstring wtrs(const wchar_t* format, fmt::ArgList args)
    return fmt::format(format, args);
 }
 
-void mws_print(const char* i_format, ...)
+void mws_print_impl(const char* i_format, ...)
 {
    char dest[1024 * 16];
    va_list arg_ptr;
