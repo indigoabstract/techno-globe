@@ -1,6 +1,28 @@
 #pragma once
 // common c/c++ code.
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif 
+  
+
+#if !defined NDEBUG || defined _DEBUG
+
+   #define MWS_DEBUG_BUILD
+   #define MWS_REPORT_GL_ERRORS
+   #define mws_report_gfx_errs() gfx_util::check_gfx_error_impl(__FILE__, __LINE__)
+   void mws_print(const char* i_format, ...);
+
+#else
+
+   #define MWS_RELEASE_BUILD
+   #define mws_report_gfx_errs()
+   #define mws_print(i_format, ...)
+
+#endif
+
+
 // determine compile target platform
 // unicode strings are 16-bit characters on windows, and 8-bit utf-8 characters on others
 #if defined ANDROID
@@ -120,57 +142,111 @@ enum key_actions
 
 enum key_types
 {
-	KEY_INVALID,
-	KEY_A,
-	KEY_B,
-	KEY_C,
-	KEY_D,
-	KEY_E,
-	KEY_F,
-	KEY_G,
-	KEY_H,
-	KEY_I,
-	KEY_J,
-	KEY_K,
-	KEY_L,
-	KEY_M,
-	KEY_N,
-	KEY_O,
-	KEY_P,
-	KEY_Q,
-	KEY_R,
-	KEY_S,
-	KEY_T,
-	KEY_U,
-	KEY_V,
-	KEY_W,
-	KEY_X,
-	KEY_Y,
-	KEY_Z,
-	KEY_SHIFT,
+   KEY_INVALID,
+   KEY_BACKSPACE,
+   KEY_TAB,
+   KEY_ENTER,
+   KEY_LEFT_SHIFT,
+   KEY_LEFT_CONTROL,
+   KEY_LEFT_ALT,
+   KEY_PAUSE,
+   KEY_ESCAPE,
+   KEY_SPACE,
+   KEY_PAGE_UP,
+   KEY_PAGE_DOWN,
+   KEY_END,
+   KEY_HOME,
+   KEY_LEFT,
+   KEY_UP,
+   KEY_RIGHT,
+   KEY_DOWN,
+   KEY_INSERT,
+   KEY_DELETE,
+   KEY_N0,
+   KEY_N1,
+   KEY_N2,
+   KEY_N3,
+   KEY_N4,
+   KEY_N5,
+   KEY_N6,
+   KEY_N7,
+   KEY_N8,
+   KEY_N9,
+   KEY_A,
+   KEY_B,
+   KEY_C,
+   KEY_D,
+   KEY_E,
+   KEY_F,
+   KEY_G,
+   KEY_H,
+   KEY_I,
+   KEY_J,
+   KEY_K,
+   KEY_L,
+   KEY_M,
+   KEY_N,
+   KEY_O,
+   KEY_P,
+   KEY_Q,
+   KEY_R,
+   KEY_S,
+   KEY_T,
+   KEY_U,
+   KEY_V,
+   KEY_W,
+   KEY_X,
+   KEY_Y,
+   KEY_Z,
+   KEY_LEFT_SUPER,
+   KEY_MENU,
+   KEY_NUM0,
+   KEY_NUM1,
+   KEY_NUM2,
+   KEY_NUM3,
+   KEY_NUM4,
+   KEY_NUM5,
+   KEY_NUM6,
+   KEY_NUM7,
+   KEY_NUM8,
+   KEY_NUM9,
+   KEY_NUM_MULTIPLY,
+   KEY_NUM_ADD,
+   KEY_NUM_SUBTRACT,
+   KEY_NUM_DECIMAL,
+   KEY_NUM_DIVIDE,
+   KEY_F1,
+   KEY_F2,
+   KEY_F3,
+   KEY_F4,
+   KEY_F5,
+   KEY_F6,
+   KEY_F7,
+   KEY_F8,
+   KEY_F9,
+   KEY_F10,
+   KEY_F11,
+   KEY_F12,
+   KEY_NUM_LOCK,
+   KEY_SCROLL_LOCK,
+   KEY_MINUS,
+   KEY_SEMICOLON,
+   KEY_EQUAL,
+   KEY_COMMA,
+   KEY_PERIOD,
+   KEY_SLASH,
+   KEY_GRAVE_ACCENT,
+   KEY_LEFT_BRACKET,
+   KEY_BACKSLASH,
+   KEY_RIGHT_BRACKET,
+   KEY_APOSTROPHE,
+  
+   KEY_SHIFT,
 	KEY_CONTROL,
 	KEY_ALT,
-	KEY_UP,
-	KEY_DOWN,
-	KEY_LEFT,
-	KEY_RIGHT,
-	KEY_ENTER,
 	KEY_SELECT,
 	KEY_BACK,
-	KEY_ESCAPE,
-	KEY_SPACE,
-	KEY_F1,
-	KEY_F2,
-	KEY_F3,
-	KEY_F4,
-	KEY_F5,
-	KEY_F6,
-	KEY_F7,
-	KEY_F8,
-	KEY_F9,
-	KEY_F10,
-	KEY_F11,
-	KEY_F12,
+
 	KEY_COUNT,
 };
 
@@ -188,3 +264,8 @@ enum key_types
 #define DK_DOWN_RIGHT   KEY_C
 #define DK_UP_LEFT      KEY_Q
 #define DK_UP_RIGHT     KEY_E
+
+
+#ifdef __cplusplus
+}
+#endif 

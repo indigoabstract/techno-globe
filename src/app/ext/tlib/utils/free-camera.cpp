@@ -88,7 +88,16 @@ void free_camera::update_input(shared_ptr<iadp> idp)
 
             if (ts->is_finished)
             {
-               ks->start_slowdown();
+               uint32 delta_t = ts->crt_state.te->time - ts->prev_state.te->time;
+
+               if (delta_t < 150)
+               {
+                  ks->start_slowdown();
+               }
+               else
+               {
+                  ks->reset();
+               }
             }
             else
             {

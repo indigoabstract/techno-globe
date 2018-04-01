@@ -258,7 +258,7 @@ void gfx::reload()
          tex->reload();
       }
 
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
    }
 }
 
@@ -300,7 +300,7 @@ void gfx::rt::set_current_render_target(shared_ptr<gfx_rt> irdt)
 {
    int width = 0, height = 0;
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 
    if (irdt)
    {
@@ -316,7 +316,7 @@ void gfx::rt::set_current_render_target(shared_ptr<gfx_rt> irdt)
          trx("glerror - gl frame buffer status != frame buffer complete");
       }
 
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
    }
    else
    {
@@ -328,12 +328,12 @@ void gfx::rt::set_current_render_target(shared_ptr<gfx_rt> irdt)
 
       width = get_screen_width();
       height = get_screen_height();
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
    }
 
    active_rt = irdt;
    glViewport(0, 0, width, height);
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 }
 
 bool gfx::shader::reload_shader_on_modify()
@@ -445,7 +445,7 @@ shared_ptr<gfx_shader> gfx::shader::get_current_program()
 
 void gfx::shader::set_current_program(shared_ptr<gfx_shader> iglp)
 {
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 
    if (iglp)
    {
@@ -469,7 +469,7 @@ void gfx::shader::set_current_program(shared_ptr<gfx_shader> iglp)
       ia_signal_error();
    }
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 }
 
 shared_ptr<gfx_tex> gfx::tex::new_tex_2d(std::string iuni_tex_name, const gfx_tex_params* i_prm)
@@ -616,7 +616,7 @@ void gfx::check_init()
       throw ia_exception("gl context is not yet created!");
    }
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 }
 
 void gfx::get_render_target_pixels_impl(shared_ptr<gfx_rt> irt, void* ivect)

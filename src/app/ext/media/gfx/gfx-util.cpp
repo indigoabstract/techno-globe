@@ -186,13 +186,13 @@ void gfx_util::draw_tex(shared_ptr<gfx_tex> itex, float itx, float ity, float iw
       q2d->render_mesh(shared_ptr<gfx_camera>());
 
       gfx::shader::set_current_program(current_program);
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
    }
 }
 
-void gfx_util::check_gfx_error()
+void gfx_util::check_gfx_error_impl(const char* file, uint32 line)
 {
-#if defined CHECK_GL_ERRORS
+#if defined MWS_REPORT_GL_ERRORS
 
    //if debug build
    {
@@ -205,11 +205,11 @@ void gfx_util::check_gfx_error()
             std::string error_name = gl_error_code_list[error_code];
             std::string error_desc = gl_error_list[error_name];
 
-            vprint("gl error %d / 0x%x: %s [%s]\n", error_code, error_code, error_name.c_str(), error_desc.c_str());
+            vprint("gl error in file [%s] at line [%d] code [%d / 0x%x] name [%s] desc [%s]\n", file, line, error_code, error_code, error_name.c_str(), error_desc.c_str());
          }
          else
          {
-            vprint("gl error %d / 0x%x\n", error_code, error_code);
+            vprint("gl error in file [%s] at line [%d] code [%d / 0x%x]\n", file, line, error_code, error_code);
          }
 
          ia_signal_error();

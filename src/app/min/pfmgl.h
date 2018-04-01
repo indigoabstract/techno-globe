@@ -1,12 +1,13 @@
 #pragma once
+// common c/c++ code.
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif 
+
 
 #include "pfm-def.h"
-
-#if !defined NDEBUG && !defined _DEBUG
-
-   #define CHECK_GL_ERRORS
-
-#endif
 
 #define OPENGL_ES_2_0 20
 #define OPENGL_ES_3_0 30
@@ -37,6 +38,14 @@
       #include <GLES3/gl2ext.h>
 
    #endif // OPENGL_ES_VERSION == OPENGL_ES_2_0
+
+   #ifndef APIENTRY
+   #define APIENTRY
+   #endif
+   #ifndef GLAPI
+   #define GLAPI extern
+   #endif
+   GLAPI void APIENTRY glGetBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, void *data);
 
 #elif defined PLATFORM_IOS
 
@@ -372,3 +381,8 @@ void mws_tex_img_2d(GLenum target, GLint mipmap_count, GLint internalformat, GLs
 	#endif
 
 #endif
+
+
+#ifdef __cplusplus
+}
+#endif 

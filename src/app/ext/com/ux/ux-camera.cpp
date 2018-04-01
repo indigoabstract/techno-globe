@@ -101,7 +101,7 @@ class ux_camera_impl
 public:
 	ux_camera_impl()
 	{
-		font = ux_font::new_inst(24);
+		font = ux_font::new_inst(48);
 		font->set_color(gfx_color::colors::yellow);
 	}
 

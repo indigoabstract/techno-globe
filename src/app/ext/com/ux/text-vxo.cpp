@@ -48,7 +48,7 @@ public:
 		vbuffer = vertex_buffer_new("vertex:3f,tex_coord:2f,color:4f,ashift:1f,agamma:1f");
       update_projection_mx();
       
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
 	}
 
 	~text_vxo_impl()
@@ -117,7 +117,7 @@ public:
 			vertex_buffer_render(vbuffer, GL_TRIANGLES);
 		}
 
-		gfx_util::check_gfx_error();
+		mws_report_gfx_errs();
 	}
 
    void add_text_2d(const std::string& Text, const glm::vec2& Pos, const std::shared_ptr<ux_font> Fnt)

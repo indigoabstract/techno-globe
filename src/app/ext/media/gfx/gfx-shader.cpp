@@ -433,7 +433,7 @@ public:
          program_id = fragment_shader_id = vertex_shader_id = 0;
       }
 
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
    }
 
    void reload()
@@ -451,7 +451,7 @@ public:
          //}
       }
 
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
    }
 
    void reload_on_modifications()
@@ -617,7 +617,7 @@ void gfx_shader::update_uniform(std::shared_ptr<gfx_input> i_input, const void* 
 {
    if (i_input && i_input->get_location() != -1)
    {
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
 
       gfx_int loc_idx = i_input->get_location();
       gfx_int array_size = i_input->get_array_size();
@@ -676,7 +676,7 @@ void gfx_shader::update_uniform(std::shared_ptr<gfx_input> i_input, const void* 
          break;
       }
 
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
    }
 }
 

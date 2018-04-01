@@ -749,7 +749,7 @@ void gfx_vxo::render_mesh_impl(shared_ptr<gfx_camera> icamera)
    int offset = 0;
    gfx_uint method = method_type[render_method];
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 
    for (std::vector<shared_ptr<vx_attribute> >::iterator it = vxi.vx_attr_vect.begin(); it != vxi.vx_attr_vect.end(); it++)
    {
@@ -794,7 +794,7 @@ void gfx_vxo::render_mesh_impl(shared_ptr<gfx_camera> icamera)
       offset += at->get_aligned_size();
    }
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 
    // aux vertex attribs
    int offset_aux = 0;
@@ -839,9 +839,9 @@ void gfx_vxo::render_mesh_impl(shared_ptr<gfx_camera> icamera)
 
    if (wf_mode != MV_WF_WIREFRAME_ONLY)
    {
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
       glDrawElements(method, indices_buffer.size(), GL_UNSIGNED_INT, 0);
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
    }
 
    switch (wf_mode)
@@ -882,7 +882,7 @@ void gfx_vxo::render_mesh_impl(shared_ptr<gfx_camera> icamera)
    }
    }
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 
    // aux vertex attribs
    for (std::vector<shared_ptr<vx_attribute> >::iterator it = vxi.vx_aux_attr_vect.begin(); it != vxi.vx_aux_attr_vect.end(); it++)
@@ -907,7 +907,7 @@ void gfx_vxo::render_mesh_impl(shared_ptr<gfx_camera> icamera)
 
    glBindBuffer(GL_ARRAY_BUFFER, 0);
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 }
 
 void gfx_vxo::compute_tangent_basis()

@@ -228,20 +228,20 @@ void gfx_tex::send_uniform(const std::string iuniform_name, int iactive_tex_inde
 
    if (param_location != -1)
    {
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
       glUniform1i(param_location, iactive_tex_index);
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
       set_active(iactive_tex_index);
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
    }
 }
 
 void gfx_tex::set_active(int itex_unit_index)
 {
    check_valid_state();
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
    glActiveTexture(GL_TEXTURE0 + itex_unit_index);
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
    glBindTexture(gl_tex_target, texture_gl_id);
 
    if (texture_updated)
@@ -268,7 +268,7 @@ void gfx_tex::set_active(int itex_unit_index)
    //   glGenerateMipmap(gl_tex_target);
    //}
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 }
 
 void gfx_tex::update(int iactive_tex_index, const char* ibb)
@@ -296,7 +296,7 @@ void gfx_tex::update(int iactive_tex_index, const char* ibb)
       }
    }
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 }
 
 void gfx_tex::reload()
@@ -320,7 +320,7 @@ void gfx_tex::reload()
             mws_tex_img_2d(gl_tex_target, mipmap_count, prm.internal_format, width, height, 0, prm.format, prm.type, nullptr);
          }
 
-         gfx_util::check_gfx_error();
+         mws_report_gfx_errs();
 
          glTexParameteri(gl_tex_target, GL_TEXTURE_MIN_FILTER, prm.gl_min_filter());
          glTexParameteri(gl_tex_target, GL_TEXTURE_MAG_FILTER, prm.gl_mag_filter());
@@ -337,7 +337,7 @@ void gfx_tex::reload()
             glGenerateMipmap(gl_tex_target);
          }
 
-         gfx_util::check_gfx_error();
+         mws_report_gfx_errs();
       }
    }
 }
@@ -386,7 +386,7 @@ gfx_tex::gfx_tex(std::string itex_name, const gfx_tex_params* i_prm, std::shared
       glTexSubImage2D(gl_tex_target, 0, 0, 0, width, height, prm.format, prm.type, rid->data);
    }
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 
    glTexParameteri(gl_tex_target, GL_TEXTURE_MIN_FILTER, prm.gl_min_filter());
    glTexParameteri(gl_tex_target, GL_TEXTURE_MAG_FILTER, prm.gl_mag_filter());
@@ -403,7 +403,7 @@ gfx_tex::gfx_tex(std::string itex_name, const gfx_tex_params* i_prm, std::shared
       glGenerateMipmap(gl_tex_target);
    }
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
    is_valid_state = true;
    texture_updated = false;
 }
@@ -425,7 +425,7 @@ gfx_tex::gfx_tex(std::string itex_name, int itexture_id, int iwith, int iheight,
    texture_gl_id = itexture_id;
    init_dimensions(iwith, iheight);
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
    is_valid_state = true;
    texture_updated = false;
 }
@@ -456,7 +456,7 @@ gfx_tex::gfx_tex(std::string itex_name, int iwith, int iheight, gfx_tex_types iu
       mws_tex_img_2d(gl_tex_target, mipmap_count, prm.internal_format, width, height, 0, prm.format, prm.type, nullptr);
    }
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 
    glTexParameteri(gl_tex_target, GL_TEXTURE_MIN_FILTER, prm.gl_min_filter());
    glTexParameteri(gl_tex_target, GL_TEXTURE_MAG_FILTER, prm.gl_mag_filter());
@@ -473,7 +473,7 @@ gfx_tex::gfx_tex(std::string itex_name, int iwith, int iheight, gfx_tex_types iu
       glGenerateMipmap(gl_tex_target);
    }
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
    is_valid_state = true;
    texture_updated = false;
 }
@@ -509,7 +509,7 @@ int gfx_tex::gen_texture_gl_id()
    glGenTextures(1, &tex_id);
 
    vprint("gfx-info gen_texture_gl_id [%d]\n", tex_id);
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 
    return tex_id;
 }
@@ -602,7 +602,7 @@ gfx_tex_cube_map::gfx_tex_cube_map(std::string itex_name, std::shared_ptr<gfx> i
       glTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + k, 0, 0, 0, width, height, prm.format, prm.type, rid->data);
    }
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
 
    if (mipmaps_supported(prm.internal_format))
    {
@@ -623,7 +623,7 @@ gfx_tex_cube_map::gfx_tex_cube_map(std::string itex_name, std::shared_ptr<gfx> i
    if (prm.anisotropy_enabled())glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, prm.max_anisotropy);
    if (prm.gen_mipmaps && mipmaps_supported(prm.internal_format))glGenerateMipmap(gl_tex_target);
 
-   gfx_util::check_gfx_error();
+   mws_report_gfx_errs();
    is_valid_state = true;
 }
 

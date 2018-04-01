@@ -169,7 +169,7 @@ void emst_main::write_text_nl(const wchar_t* text)const
 
 void emst_main::write_text_v(const char* iformat, ...)const
 {
-   static char dest[1024 * 16];
+   char dest[1024 * 16];
    va_list arg_ptr;
 
    va_start(arg_ptr, iformat);
@@ -191,10 +191,10 @@ umf_list emst_main::get_directory_listing(const std::string& idirectory, umf_lis
    {
       std::string key;
       key = "dummy-runtime-file"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, ""));
-      //key = "hello_world_file.txt"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, ""));
-      //key = "missing.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, ""));
       key = "res-file"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, ""));
       key = "vera.ttf"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, ""));
+      key = "3d-globe-bg.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      key = "3d-globe-bg.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "3d-globe-outline.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "3d-globe-outline.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "basic_tex.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
@@ -211,10 +211,15 @@ umf_list emst_main::get_directory_listing(const std::string& idirectory, umf_lis
       key = "globe-spike.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "globe-spike-base.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "globe-spike-base.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      key = "globe-spike-base-id.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      key = "globe-spike-base-id.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "hot-spot-lines.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "hot-spot-lines.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "sky-box.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "sky-box.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      key = "v3f-t2f-c4f.frag"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders/freetype-gl"));
+      key = "v3f-t2f-c4f.vert"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders/freetype-gl"));
+      key = "detail-tex.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex"));
       key = "line.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex"));
       key = "trail.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex"));
       key = "skybx-negx.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex/skybx"));
@@ -244,17 +249,42 @@ emst_main::emst_main()
 
 EM_BOOL emst_key_down(int event_type, const EmscriptenKeyboardEvent* e, void* user_data)
 {
+   key_types key = emst_main::get_instance()->map_key(e->keyCode);
+
+   if (key != KEY_INVALID)
+   {
+      unit_ctrl::inst()->key_action(KEY_PRESS, key);
+
+      switch (key)
+      {
+      case KEY_TAB:
+      case KEY_BACKSPACE:
+      case KEY_ENTER:
+         return true;
+
+      default:
+         return false;
+      }
+   }
+
    return false;
 }
 
 EM_BOOL emst_key_up(int event_type, const EmscriptenKeyboardEvent* e, void* user_data)
 {
+   key_types key = emst_main::get_instance()->map_key(e->keyCode);
+
+   if (key != KEY_INVALID)
+   {
+      unit_ctrl::inst()->key_action(KEY_RELEASE, key);
+   }
+
    return false;
 }
 
 EM_BOOL emst_key_press(int event_type, const EmscriptenKeyboardEvent* e, void* user_data)
 {
-   return true;
+   return false;
 }
 
 EM_BOOL emst_mouse_down(int event_type, const EmscriptenMouseEvent* e, void* user_data)
@@ -338,6 +368,8 @@ EM_BOOL emst_touch(int event_type, const EmscriptenTouchEvent* e, void* user_dat
 
 void emst_main::setup_callbacks()
 {
+   setup_key_table();
+
    emscripten_set_keydown_callback(0, this, true, emst_key_down);
    emscripten_set_keyup_callback(0, this, true, emst_key_up);
    emscripten_set_keypress_callback(0, this, true, emst_key_press);
@@ -351,6 +383,126 @@ void emst_main::setup_callbacks()
    emscripten_set_touchcancel_callback("#canvas", this, true, emst_touch);
    //emscripten_set_devicemotion_callback(this, true, emst_device_motion);
    //emscripten_set_deviceorientation_callback(this, true, emst_device_orientation);
+}
+
+void emst_main::setup_key_table()
+{
+   for (int k = 0; k < MAX_KEY_COUNT; k++)
+   {
+      key_table[k] = KEY_INVALID;
+   }
+
+   key_table[8] = KEY_BACKSPACE;
+   key_table[9] = KEY_TAB;
+   key_table[13] = KEY_ENTER;
+   key_table[16] = KEY_LEFT_SHIFT;
+   key_table[17] = KEY_LEFT_CONTROL;
+   key_table[18] = KEY_LEFT_ALT;
+   key_table[19] = KEY_PAUSE;
+   key_table[27] = KEY_ESCAPE;
+   key_table[32] = KEY_SPACE;
+   key_table[33] = KEY_PAGE_UP;
+   key_table[34] = KEY_PAGE_DOWN;
+   key_table[35] = KEY_END;
+   key_table[36] = KEY_HOME;
+   key_table[37] = KEY_LEFT;
+   key_table[38] = KEY_UP;
+   key_table[39] = KEY_RIGHT;
+   key_table[40] = KEY_DOWN;
+   key_table[45] = KEY_INSERT;
+   key_table[46] = KEY_DELETE;
+   key_table[48] = KEY_N0;
+   key_table[49] = KEY_N1;
+   key_table[50] = KEY_N2;
+   key_table[51] = KEY_N3;
+   key_table[52] = KEY_N4;
+   key_table[53] = KEY_N5;
+   key_table[54] = KEY_N6;
+   key_table[55] = KEY_N7;
+   key_table[56] = KEY_N8;
+   key_table[57] = KEY_N9;
+   key_table[59] = KEY_SEMICOLON;
+   key_table[64] = KEY_EQUAL;
+   key_table[65] = KEY_A;
+   key_table[66] = KEY_B;
+   key_table[67] = KEY_C;
+   key_table[68] = KEY_D;
+   key_table[69] = KEY_E;
+   key_table[70] = KEY_F;
+   key_table[71] = KEY_G;
+   key_table[72] = KEY_H;
+   key_table[73] = KEY_I;
+   key_table[74] = KEY_J;
+   key_table[75] = KEY_K;
+   key_table[76] = KEY_L;
+   key_table[77] = KEY_M;
+   key_table[78] = KEY_N;
+   key_table[79] = KEY_O;
+   key_table[80] = KEY_P;
+   key_table[81] = KEY_Q;
+   key_table[82] = KEY_R;
+   key_table[83] = KEY_S;
+   key_table[84] = KEY_T;
+   key_table[85] = KEY_U;
+   key_table[86] = KEY_V;
+   key_table[87] = KEY_W;
+   key_table[88] = KEY_X;
+   key_table[89] = KEY_Y;
+   key_table[90] = KEY_Z;
+   key_table[91] = KEY_LEFT_SUPER;
+   key_table[93] = KEY_MENU;
+   key_table[96] = KEY_NUM0;
+   key_table[97] = KEY_NUM1;
+   key_table[98] = KEY_NUM2;
+   key_table[99] = KEY_NUM3;
+   key_table[100] = KEY_NUM4;
+   key_table[101] = KEY_NUM5;
+   key_table[102] = KEY_NUM6;
+   key_table[103] = KEY_NUM7;
+   key_table[104] = KEY_NUM8;
+   key_table[105] = KEY_NUM9;
+   key_table[106] = KEY_NUM_MULTIPLY;
+   key_table[107] = KEY_NUM_ADD;
+   key_table[109] = KEY_NUM_SUBTRACT;
+   key_table[110] = KEY_NUM_DECIMAL;
+   key_table[111] = KEY_NUM_DIVIDE;
+   key_table[112] = KEY_F1;
+   key_table[113] = KEY_F2;
+   key_table[114] = KEY_F3;
+   key_table[115] = KEY_F4;
+   key_table[116] = KEY_F5;
+   key_table[117] = KEY_F6;
+   key_table[118] = KEY_F7;
+   key_table[119] = KEY_F8;
+   key_table[120] = KEY_F9;
+   key_table[121] = KEY_F10;
+   key_table[122] = KEY_F11;
+   key_table[123] = KEY_F12;
+   key_table[144] = KEY_NUM_LOCK;
+   key_table[145] = KEY_SCROLL_LOCK;
+   key_table[173] = KEY_MINUS;
+   key_table[186] = KEY_SEMICOLON;
+   key_table[187] = KEY_EQUAL;
+   key_table[188] = KEY_COMMA;
+   key_table[189] = KEY_MINUS;
+   key_table[190] = KEY_PERIOD;
+   key_table[191] = KEY_SLASH;
+   key_table[192] = KEY_GRAVE_ACCENT;
+   key_table[219] = KEY_LEFT_BRACKET;
+   key_table[220] = KEY_BACKSLASH;
+   key_table[221] = KEY_RIGHT_BRACKET;
+   key_table[222] = KEY_APOSTROPHE;
+   key_table[224] = KEY_LEFT_SUPER;
+}
+
+key_types emst_main::map_key(unsigned long i_key_code) const
+{
+   if (i_key_code < MAX_KEY_COUNT)
+   {
+      return key_table[i_key_code];
+   }
+
+   return KEY_INVALID;
 }
 
 
@@ -392,69 +544,6 @@ const char *emscripten_result_to_string(EMSCRIPTEN_RESULT result) {
 }
 
 #define TEST_RESULT(x) if (ret != EMSCRIPTEN_RESULT_SUCCESS) printf("%s returned %s.\n", #x, emscripten_result_to_string(ret));
-
-// The event handler functions can return 1 to suppress the event and disable the default action. That calls event.preventDefault();
-// Returning 0 signals that the event was not consumed by the code, and will allow the event to pass on and bubble up normally.
-EM_BOOL key_callback(int event_type, const EmscriptenKeyboardEvent *e, void *user_data)
-{
-   printf("key_callback\n");
-   if (event_type == EMSCRIPTEN_EVENT_KEYPRESS && (!strcmp(e->key, "f") || e->which == 102)) {
-      EmscriptenFullscreenChangeEvent fsce;
-      EMSCRIPTEN_RESULT ret = emscripten_get_fullscreen_status(&fsce);
-      TEST_RESULT(emscripten_get_fullscreen_status);
-      if (!fsce.isFullscreen) {
-         printf("Requesting fullscreen..\n");
-         ret = emscripten_request_fullscreen(0, 1);
-         TEST_RESULT(emscripten_request_fullscreen);
-      }
-      else {
-         printf("Exiting fullscreen..\n");
-         ret = emscripten_exit_fullscreen();
-         TEST_RESULT(emscripten_exit_fullscreen);
-         ret = emscripten_get_fullscreen_status(&fsce);
-         TEST_RESULT(emscripten_get_fullscreen_status);
-         if (fsce.isFullscreen) {
-            fprintf(stderr, "Fullscreen exit did not work!\n");
-         }
-      }
-   }
-   else if (event_type == EMSCRIPTEN_EVENT_KEYPRESS && (!strcmp(e->key, "Esc") || !strcmp(e->key, "Escape") || e->which == 27)) {
-      emscripten_exit_soft_fullscreen();
-   }
-   return 0;
-}
-
-int callCount = 0;
-
-EM_BOOL fullscreenchange_callback(int event_type, const EmscriptenFullscreenChangeEvent *e, void *user_data)
-{
-   printf("%s, isFullscreen: %d, fullscreenEnabled: %d, is_full_screen element nodeName: \"%s\", is_full_screen element id: \"%s\". New size: %dx%d pixels. Screen size: %dx%d pixels.\n",
-      emscripten_event_type_to_string(event_type), e->isFullscreen, e->fullscreenEnabled, e->nodeName, e->id, e->elementWidth, e->elementHeight, e->screenWidth, e->screenHeight);
-
-   ++callCount;
-   if (callCount == 1) { // Transitioned to fullscreen.
-      if (!e->isFullscreen) {
-         report_result(1);
-      }
-   }
-   else if (callCount == 2) { // Transitioned to windowed, we must be back to the default pixel size 300x150.
-      if (e->isFullscreen || e->elementWidth != 300 || e->elementHeight != 150) {
-         report_result(1);
-      }
-      else {
-         report_result(0);
-      }
-   }
-   return 0;
-}
-
-EM_BOOL mouse_callback(int event_type, const EmscriptenMouseEvent *e, void *user_data)
-{
-   //printf("mouse_callback\n");
-   return 0;
-}
-
-//GLuint program;
 
 void mws_get_canvas_size(int* width, int* height, int* is_full_screen)
 {
@@ -516,37 +605,18 @@ void enterSoftFullscreen(int scaleMode, int canvasResolutionScaleMode, int filte
    TEST_RESULT(enterSoftFullscreen);
 }
 
-int on_button_click(int event_type, const EmscriptenMouseEvent *mouseEvent, void *user_data)
-{
-   switch ((int)user_data)
-   {
-   case 0: requestFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_DEFAULT, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_NONE, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-   case 1: requestFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_STRETCH, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-   case 2: requestFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_STRETCH, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_HIDEF, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-   case 3: requestFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_ASPECT, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-   case 4: requestFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_ASPECT, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_HIDEF, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-   case 5: requestFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_STRETCH, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_NONE, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-   case 6: requestFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_ASPECT, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_NONE, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-   case 7: requestFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_CENTER, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_NONE, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-
-   case 8: enterSoftFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_STRETCH, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-   case 9: enterSoftFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_STRETCH, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_HIDEF, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-   case 10: enterSoftFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_ASPECT, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-   case 11: enterSoftFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_ASPECT, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_HIDEF, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-   case 12: enterSoftFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_STRETCH, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_NONE, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-   case 13: enterSoftFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_ASPECT, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_NONE, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-   case 14: enterSoftFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_CENTER, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_NONE, EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT); break;
-
-   case 15: requestFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_ASPECT, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_NONE, EMSCRIPTEN_FULLSCREEN_FILTERING_NEAREST); break;
-   case 16: enterSoftFullscreen(EMSCRIPTEN_FULLSCREEN_SCALE_ASPECT, EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_NONE, EMSCRIPTEN_FULLSCREEN_FILTERING_NEAREST); break;
-   default: return 0;
-   }
-   return 1;
-}
-
 void run_step()
 {
    emst_main::get_instance()->run();
+}
+
+// implement this gl function missing in emscripten
+GLAPI void APIENTRY glGetBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, void *data)
+{
+   EM_ASM_(
+      {
+         Module.ctx.getBufferSubData(Module.ctx.PIXEL_PACK_BUFFER, 0, HEAPU8.subarray($0, $0 + $1));
+      }, data, size);
 }
 
 int main()
@@ -578,49 +648,7 @@ int main()
    emscripten_webgl_make_context_current(ctx);
 
    EM_BOOL anisotropy_enabled = emscripten_webgl_enable_extension(ctx, "EXT_texture_filter_anisotropic");
-   printf("anisotropy enabled: %d\n", anisotropy_enabled);
-
-   EMSCRIPTEN_RESULT ret = emscripten_set_keypress_callback(0, 0, 1, key_callback);
-   TEST_RESULT(emscripten_set_keypress_callback);
-
-   ret = emscripten_set_fullscreenchange_callback(0, 0, 1, fullscreenchange_callback);
-   TEST_RESULT(emscripten_set_fullscreenchange_callback);
-
-   // For Internet Explorer, fullscreen and pointer lock requests cannot be run
-   // from inside keyboard event handlers. Therefore we must register a callback to
-   // mouse events (any other than mousedown) to activate deferred fullscreen/pointerlock
-   // requests to occur for IE. The callback itself can be a no-op.
-   ret = emscripten_set_click_callback(0, 0, 1, mouse_callback);
-   TEST_RESULT(emscripten_set_click_callback);
-   ret = emscripten_set_mousedown_callback(0, 0, 1, mouse_callback);
-   TEST_RESULT(emscripten_set_mousedown_callback);
-   ret = emscripten_set_mouseup_callback(0, 0, 1, mouse_callback);
-   TEST_RESULT(emscripten_set_mouseup_callback);
-   ret = emscripten_set_dblclick_callback(0, 0, 1, mouse_callback);
-   TEST_RESULT(emscripten_set_dblclick_callback);
-
-   //emscripten_set_click_callback("b0", (void*)0, 1, on_button_click);
-   //emscripten_set_click_callback("b1", (void*)1, 1, on_button_click);
-   //emscripten_set_click_callback("b2", (void*)2, 1, on_button_click);
-   //emscripten_set_click_callback("b3", (void*)3, 1, on_button_click);
-   //emscripten_set_click_callback("b4", (void*)4, 1, on_button_click);
-   //emscripten_set_click_callback("b5", (void*)5, 1, on_button_click);
-   //emscripten_set_click_callback("b6", (void*)6, 1, on_button_click);
-   //emscripten_set_click_callback("b7", (void*)7, 1, on_button_click);
-   //emscripten_set_click_callback("b8", (void*)8, 1, on_button_click);
-   //emscripten_set_click_callback("b9", (void*)9, 1, on_button_click);
-   //emscripten_set_click_callback("b10", (void*)10, 1, on_button_click);
-   //emscripten_set_click_callback("b11", (void*)11, 1, on_button_click);
-   //emscripten_set_click_callback("b12", (void*)12, 1, on_button_click);
-   //emscripten_set_click_callback("b13", (void*)13, 1, on_button_click);
-   //emscripten_set_click_callback("b14", (void*)14, 1, on_button_click);
-   //emscripten_set_click_callback("b15", (void*)15, 1, on_button_click);
-   //emscripten_set_click_callback("b16", (void*)16, 1, on_button_click);
-
-   printf("To finish this test, press f to enter fullscreen mode, and then exit it.\n");
-   printf("On IE, press a mouse key over the canvas after pressing f to activate the fullscreen request event.\n");
-
-   //load_file("hello_world_file.txt");
+   mws_print("anisotropy enabled: %d\n", anisotropy_enabled);
 
    emst_main::get_instance()->init();
    emst_main::get_instance()->start();

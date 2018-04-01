@@ -14,9 +14,10 @@
 boost::posix_time::ptime time_start;
 #endif
 
-#include <stdio.h>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cstdarg>
 
 using std::string;
 using std::wstring;
@@ -1228,6 +1229,17 @@ std::string trs(const char* format, fmt::ArgList args)
 std::wstring wtrs(const wchar_t* format, fmt::ArgList args)
 {
    return fmt::format(format, args);
+}
+
+void mws_print(const char* i_format, ...)
+{
+   char dest[1024 * 16];
+   va_list arg_ptr;
+
+   va_start(arg_ptr, i_format);
+   vsnprintf(dest, 1024 * 16 - 1, i_format, arg_ptr);
+   va_end(arg_ptr);
+   pfm::get_pfm_main_inst()->write_text(dest);
 }
 
 

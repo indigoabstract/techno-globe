@@ -194,7 +194,7 @@ public:
    {
 #if defined MOD_FFMPEG && defined UNIT_TEST_FFMPEG && defined MOD_GFX
 
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
 
       auto unit = u.lock();
       auto ux_cam = u.lock()->ux_cam;
@@ -263,21 +263,21 @@ public:
       rt_y_quad->render_mesh(ux_cam);
       //gfx::rt::get_render_target_pixels<uint8>(rt_y, pixels_y_tex);
       helper::read_pixels_helper(pbo_supported, rt_y_tex, y_pbo_ids[pbo_index], y_pbo_ids[pbo_next_index], pixels_y_tex);
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
 
       gfx::rt::set_current_render_target(rt_u);
       rt_u_quad->render_mesh(ux_cam);
       //gfx::rt::get_render_target_pixels<uint8>(rt_u, pixels_u_tex);
       helper::read_pixels_helper(pbo_supported, rt_u_tex, u_pbo_ids[pbo_index], u_pbo_ids[pbo_next_index], pixels_u_tex);
       gfx::rt::set_current_render_target();
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
 
       gfx::rt::set_current_render_target(rt_v);
       rt_v_quad->render_mesh(ux_cam);
       //gfx::rt::get_render_target_pixels<uint8>(rt_v, pixels_v_tex);
       helper::read_pixels_helper(pbo_supported, rt_v_tex, v_pbo_ids[pbo_index], v_pbo_ids[pbo_next_index], pixels_v_tex);
       gfx::rt::set_current_render_target();
-      gfx_util::check_gfx_error();
+      mws_report_gfx_errs();
 
       // skip this on the first frame as the frame data isn't ready yet
       // also skip on the second frame to avoid capturing the fps text (it's still in the backbuffer)
@@ -1024,8 +1024,9 @@ void unit::update_view(int update_count)
    {
       float ups = 1000.f / update_ctrl->getTimeStepDuration();
       string f = trs("uc {} u {:02.1f} f {:02.1f}", update_count, ups, fps);
+      glm::vec2 txt_dim = gfx->get_font()->get_text_dim(f);
 
-      gfx->drawText(f, get_width() - 220.f, 0.f);
+      gfx->drawText(f, get_width() - txt_dim.x, 0.f);
    }
 
    //signal_opengl_error();

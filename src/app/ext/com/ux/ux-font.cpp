@@ -34,6 +34,11 @@ public:
 };
 
 
+shared_ptr<ux_font> ux_font::new_inst(std::shared_ptr<ux_font> i_fnt)
+{
+   return new_inst(i_fnt->p->size, i_fnt->get_full_path());
+}
+
 shared_ptr<ux_font> ux_font::new_inst(float isize, const std::string& ifont_path)
 {
 	shared_ptr<ux_font> font(new ux_font());
