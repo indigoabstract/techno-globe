@@ -217,8 +217,8 @@ void gfx_vxo::push_material_params()
 
       gfx_uint culling_enabled = gl::FALSE_GL;
       gfx_uint culling_mode = gl::BACK_GL;
-      bool cull_back = mat[MP_CULL_BACK].get_bool_value();
-      bool cull_front = mat[MP_CULL_FRONT].get_bool_value();
+      bool cull_back = mat[MP_CULL_BACK].get_value<bool>();
+      bool cull_front = mat[MP_CULL_FRONT].get_value<bool>();
 
       if (cull_back && cull_front)
       {
@@ -241,18 +241,18 @@ void gfx_vxo::push_material_params()
          culling_enabled = gl::FALSE_GL;
       }
 
-      gfx_uint scissor_enabled = mat[MP_SCISSOR_ENABLED].get_bool_value() ? gl::TRUE_GL : gl::FALSE_GL;
+      gfx_uint scissor_enabled = mat[MP_SCISSOR_ENABLED].get_value<bool>() ? gl::TRUE_GL : gl::FALSE_GL;
 
-      gfx_uint depth_test = mat[MP_DEPTH_TEST].get_bool_value() ? gl::TRUE_GL : gl::FALSE_GL;
+      gfx_uint depth_test = mat[MP_DEPTH_TEST].get_value<bool>() ? gl::TRUE_GL : gl::FALSE_GL;
       gfx_uint depth_test_enabled = gl_st->is_enabled(gl::DEPTH_TEST) ? gl::TRUE_GL : gl::FALSE_GL;
-      gfx_uint depth_write = mat[MP_DEPTH_WRITE].get_bool_value() ? gl::TRUE_GL : gl::FALSE_GL;
-      gfx_uint depth_func = mat[MP_DEPTH_FUNCTION].get_int_value();
+      gfx_uint depth_write = mat[MP_DEPTH_WRITE].get_value<bool>() ? gl::TRUE_GL : gl::FALSE_GL;
+      gfx_uint depth_func = mat[MP_DEPTH_FUNCTION].get_value<int>();
 
       gfx_uint blending_enabled = gl::TRUE_GL;
       gfx_uint blend_src = gl::SRC_ALPHA_GL;
       gfx_uint blend_dst = gl::ONE_MINUS_SRC_ALPHA_GL;
 
-      switch (mat[MP_BLENDING].get_int_value())
+      switch (mat[MP_BLENDING].get_value<int>())
       {
       case gfx_material::e_none:
          blending_enabled = gl::FALSE_GL;
@@ -332,7 +332,7 @@ void gfx_vxo::push_material_params()
 
          if (!mat[MP_SCISSOR_AREA].empty_value())
          {
-            sa = mat[MP_SCISSOR_AREA].get_vec4_value();
+            sa = mat[MP_SCISSOR_AREA].get_value<glm::vec4>();
             sa.y = gfx::rt::get_render_target_height() - (sa.y + sa.w);
          }
 
@@ -496,111 +496,11 @@ void gfx_vxo::push_material_params()
       {
          const std::string& uniform_name = it4->first;
          shared_ptr<gfx_material_entry> e = it4->second;
-         void* value = 0;
+         mws_any* value = e->get_any();
          gfx_input::e_data_type value_type = e->get_value_type();
 
          switch (value_type)
          {
-         case gfx_input::bvec1:
-         {
-            const bool& v = e->get_bool_value();
-            value = (void*)&v;
-            break;
-         }
-
-         case gfx_input::bvec2:
-         {
-            break;
-         }
-
-         case gfx_input::bvec3:
-         {
-            break;
-         }
-
-         case gfx_input::bvec4:
-         {
-            break;
-         }
-
-         case gfx_input::ivec1:
-         {
-            const int& v = e->get_int_value();
-            value = (void*)&v;
-            break;
-         }
-
-         case gfx_input::ivec2:
-         {
-            break;
-         }
-
-         case gfx_input::ivec3:
-         {
-            break;
-         }
-
-         case gfx_input::ivec4:
-         {
-            break;
-         }
-
-         case gfx_input::vec1:
-         {
-            const float& v = e->get_float_value();
-            value = (void*)&v;
-            break;
-         }
-
-         case gfx_input::vec2:
-         {
-            const glm::vec2& v = e->get_vec2_value();
-            value = (void*)glm::value_ptr(v);
-            break;
-         }
-
-         case gfx_input::vec3:
-         {
-            const glm::vec3& v = e->get_vec3_value();
-            value = (void*)glm::value_ptr(v);
-            break;
-         }
-
-         case gfx_input::vec3_array:
-         {
-            const std::vector<glm::vec3>* v = e->get_vec3_array_value();
-            value = (void*)v;
-            break;
-         }
-
-         case gfx_input::vec4:
-         {
-            const glm::vec4& v = e->get_vec4_value();
-            value = (void*)glm::value_ptr(v);
-            break;
-         }
-
-         case gfx_input::mat2:
-         {
-            const glm::mat2& v = e->get_mat2_value();
-            value = (void*)glm::value_ptr(v);
-            break;
-         }
-
-         case gfx_input::mat3:
-         {
-            const glm::mat3& v = e->get_mat3_value();
-            value = (void*)glm::value_ptr(v);
-            break;
-         }
-
-         case gfx_input::mat4:
-         {
-            const glm::mat4& v = e->get_mat4_value();
-            value = (void*)glm::value_ptr(v);
-            break;
-         }
-
          case gfx_input::s2d:
          {
             gfx_material_entry& e2 = mat[uniform_name][MP_TEXTURE_INST];
@@ -608,11 +508,11 @@ void gfx_vxo::push_material_params()
 
             if (!e2.empty_value())
             {
-               tex = e2.get_tex_value();
+               tex = e2.get_value<std::shared_ptr<gfx_tex> >();
             }
             else
             {
-               const std::string& tex_name = mat[uniform_name][MP_TEXTURE_NAME].get_text_value();
+               const std::string& tex_name = mat[uniform_name][MP_TEXTURE_NAME].get_value<std::string>();
                tex = gfx::tex::get_texture_by_name(tex_name);
 
                if (!tex)
@@ -631,12 +531,14 @@ void gfx_vxo::push_material_params()
             }
 
             tex->send_uniform(uniform_name, texture_unit_idx);
+            value = nullptr;
             texture_unit_idx++;
             break;
          }
 
          case gfx_input::s3d:
          {
+            value = nullptr;
             break;
          }
 
@@ -647,11 +549,11 @@ void gfx_vxo::push_material_params()
 
             if (!e2.empty_value())
             {
-               tex = e2.get_tex_value();
+               tex = e2.get_value<std::shared_ptr<gfx_tex> >();
             }
             else
             {
-               const std::string& tex_name = mat[uniform_name][MP_TEXTURE_NAME].get_text_value();
+               const std::string& tex_name = mat[uniform_name][MP_TEXTURE_NAME].get_value<std::string>();
                tex = gfx::tex::get_tex_cube_map(tex_name);
 
                if (tex)
@@ -665,17 +567,13 @@ void gfx_vxo::push_material_params()
             }
 
             tex->send_uniform(uniform_name, texture_unit_idx);
+            value = nullptr;
             texture_unit_idx++;
             break;
          }
-
-         case gfx_input::text:
-         {
-            break;
-         }
          }
 
-         if (value)
+         if (value && !value->empty())
          {
             shader->update_uniform(uniform_name, value);
          }
@@ -744,7 +642,7 @@ void gfx_vxo::render_mesh_impl(shared_ptr<gfx_camera> icamera)
    glBindBuffer(GL_ARRAY_BUFFER, array_buffer_id);
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elem_buffer_id);
 
-   wireframe_mode wf_mode = static_cast<wireframe_mode>(mat[MP_WIREFRAME_MODE].get_int_value());
+   wireframe_mode wf_mode = static_cast<wireframe_mode>(mat[MP_WIREFRAME_MODE].get_value<int>());
 
    int offset = 0;
    gfx_uint method = method_type[render_method];

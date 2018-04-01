@@ -458,6 +458,7 @@ namespace techno_globe_ns
             int sv_idx = 0;
             int ev_idx = link->step_count - 1;
 
+            link->calc_vertex_positions();
             link->set_visible_vertices(sv_idx, ev_idx);
             link->visible = false;
          }
@@ -2329,8 +2330,6 @@ namespace techno_globe_ns
          (*rrb->globe_dots_vxo)["u_v1_time"] = dt;
          (*rrb->globe_borders_vxo)["u_v1_intensity"] = v;
 
-         //vprint("dt [%f]\n", dt);
-
          if (cam_slider.is_enabled())
          {
             cam_slider.update();
@@ -2409,7 +2408,7 @@ namespace techno_globe_ns
 
             persp_cam->update_camera_state();
 
-            std::string sh_name = (*rrb->globe_spike_bases_vxo)[MP_SHADER_NAME].get_text_value();
+            std::string sh_name = (*rrb->globe_spike_bases_vxo)[MP_SHADER_NAME].get_value<std::string>();
             (*rrb->globe_spike_bases_vxo)[MP_SHADER_NAME] = "globe-spike-base-id";
             shared_ptr<gfx_state> gl_st = gfx::get_gfx_state();
             decl_scgfxpl(plist)
