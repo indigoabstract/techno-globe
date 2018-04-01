@@ -45,6 +45,7 @@ gfx_uint gfx_vxo::method_type[] =
 
 gfx_vxo::gfx_vxo(vx_info i_vxi, std::shared_ptr<gfx> i_gi) : gfx_node(i_gi)
 {
+   keep_geometry_data = false;
    vx_count = 0;
    idx_count = 0;
    vxi = i_vxi;
@@ -55,6 +56,7 @@ gfx_vxo::gfx_vxo(vx_info i_vxi, std::shared_ptr<gfx> i_gi) : gfx_node(i_gi)
    render_method = GLPT_TRIANGLES;
    is_submesh = false;
    array_buffer_id = elem_buffer_id = 0;
+   index_count = 0;
    buffer_changed = false;
 
    if (!is_submesh)
@@ -65,6 +67,7 @@ gfx_vxo::gfx_vxo(vx_info i_vxi, std::shared_ptr<gfx> i_gi) : gfx_node(i_gi)
 
 gfx_vxo::gfx_vxo(vx_info i_vxi, bool i_is_submesh, std::shared_ptr<gfx> i_gi) : gfx_node(i_gi)
 {
+   keep_geometry_data = false;
    vx_count = 0;
    idx_count = 0;
    vxi = i_vxi;
@@ -75,6 +78,7 @@ gfx_vxo::gfx_vxo(vx_info i_vxi, bool i_is_submesh, std::shared_ptr<gfx> i_gi) : 
    render_method = GLPT_TRIANGLES;
    is_submesh = i_is_submesh;
    array_buffer_id = elem_buffer_id = 0;
+   index_count = 0;
    buffer_changed = false;
 
    if (!is_submesh)
@@ -120,6 +124,7 @@ void gfx_vxo::set_data(const std::vector<uint8>& ivertices_buffer, const std::ve
 {
    vertices_buffer = ivertices_buffer;
    indices_buffer = iindices_buffer;
+   index_count = indices_buffer.size();
    buffer_changed = true;
 
    if (vxi.uses_tangent_basis && vxi.has_tangent_basis && setup_tangent_basis)
@@ -591,6 +596,7 @@ void gfx_vxo::set_size(int ivx_count, int iidx_count)
    idx_count = iidx_count;
    vertices_buffer.resize(vx_count * vxi.vertex_size);
    indices_buffer.resize(idx_count);
+   index_count = indices_buffer.size();
 }
 
 void gfx_vxo::render_mesh_impl(shared_ptr<gfx_camera> icamera)
@@ -613,13 +619,13 @@ void gfx_vxo::render_mesh_impl(shared_ptr<gfx_camera> icamera)
       icamera->update_glp_params(static_pointer_cast<gfx_vxo>(get_shared_ptr()), glp);
    }
 
-   if (vertices_buffer.empty() || indices_buffer.empty())
-   {
-      return;
-   }
-
    if (buffer_changed)
    {
+      if (vertices_buffer.empty() || indices_buffer.empty())
+      {
+         return;
+      }
+
       buffer_changed = false;
 
       if (array_buffer_id == 0)
@@ -632,7 +638,13 @@ void gfx_vxo::render_mesh_impl(shared_ptr<gfx_camera> icamera)
       glBindBuffer(GL_ARRAY_BUFFER, array_buffer_id);
       glBufferData(GL_ARRAY_BUFFER, size, begin_ptr(vertices_buffer), GL_STATIC_DRAW);
       glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elem_buffer_id);
-      glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(gfx_indices_type) * indices_buffer.size(), begin_ptr(indices_buffer), GL_STATIC_DRAW);
+      glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(gfx_indices_type) * index_count, begin_ptr(indices_buffer), GL_STATIC_DRAW);
+
+      if (!keep_geometry_data)
+      {
+         vertices_buffer.clear();
+         indices_buffer.clear();
+      }
    }
    else if (array_buffer_id == 0)
    {
@@ -738,7 +750,7 @@ void gfx_vxo::render_mesh_impl(shared_ptr<gfx_camera> icamera)
    if (wf_mode != MV_WF_WIREFRAME_ONLY)
    {
       mws_report_gfx_errs();
-      glDrawElements(method, indices_buffer.size(), GL_UNSIGNED_INT, 0);
+      glDrawElements(method, index_count, GL_UNSIGNED_INT, 0);
       mws_report_gfx_errs();
    }
 
@@ -759,7 +771,7 @@ void gfx_vxo::render_mesh_impl(shared_ptr<gfx_camera> icamera)
          icamera->update_glp_params(static_pointer_cast<gfx_vxo>(get_shared_ptr()), p);
       }
 
-      glDrawElements(GL_LINES, indices_buffer.size(), GL_UNSIGNED_INT, 0);
+      glDrawElements(GL_LINES, index_count, GL_UNSIGNED_INT, 0);
       gfx::shader::set_current_program(glp);
       break;
    }
@@ -775,7 +787,7 @@ void gfx_vxo::render_mesh_impl(shared_ptr<gfx_camera> icamera)
          icamera->update_glp_params(static_pointer_cast<gfx_vxo>(get_shared_ptr()), glp);
       }
 
-      glDrawElements(GL_LINES, indices_buffer.size(), GL_UNSIGNED_INT, 0);
+      glDrawElements(GL_LINES, index_count, GL_UNSIGNED_INT, 0);
       break;
    }
    }
@@ -840,7 +852,7 @@ void gfx_vxo::compute_tangent_basis()
 
    total_size = offset;
    int vertex_count = vertices_buffer.size() / total_size;
-   int triangle_count = indices_buffer.size() / 3;
+   int triangle_count = index_count / 3;
 
    for (std::vector<shared_ptr<vx_attribute> >::iterator it = vxi.vx_aux_attr_vect.begin(); it != vxi.vx_aux_attr_vect.end(); it++)
    {
