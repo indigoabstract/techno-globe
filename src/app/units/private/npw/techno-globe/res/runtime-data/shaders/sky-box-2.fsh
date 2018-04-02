@@ -13,6 +13,6 @@ void main()
 	vec4 v4_color = textureCube(u_scm_tex, uv);
 	
 	v4_color.rgb *= v4_color.b * 2.;
-	//v4_color.rgb *= vec3(0.1, 0.7, 1.) * 1.5;
+	v4_color.rgb *= vec3(0.1, 0.7, 1.);
 	gl_FragColor = v4_color;
 }

@@ -262,26 +262,23 @@ void mws_report_gfx_errs_impl(const char* i_file, uint32 i_line)
 {
 #if defined MWS_REPORT_GL_ERRORS
 
-   //if debug build
+   int error_code = glGetError();
+
+   if (error_code != 0)
    {
-      int error_code = glGetError();
-
-      if (error_code != 0)
+      if (gl_error_code_list.find(error_code) != gl_error_code_list.end())
       {
-         if (gl_error_code_list.find(error_code) != gl_error_code_list.end())
-         {
-            std::string error_name = gl_error_code_list[error_code];
-            std::string error_desc = gl_error_list[error_name];
+         std::string error_name = gl_error_code_list[error_code];
+         std::string error_desc = gl_error_list[error_name];
 
-            mws_print("gl error in file [%s] at line [%d] code [%d / 0x%x] name [%s] desc [%s]\n", i_file, i_line, error_code, error_code, error_name.c_str(), error_desc.c_str());
-         }
-         else
-         {
-            mws_print("gl error in file [%s] at line [%d] code [%d / 0x%x]\n", i_file, i_line, error_code, error_code);
-         }
-
-         ia_signal_error();
+         mws_print("gl error in file [%s] at line [%d] code [%d / 0x%x] name [%s] desc [%s]\n", i_file, i_line, error_code, error_code, error_name.c_str(), error_desc.c_str());
       }
+      else
+      {
+         mws_print("gl error in file [%s] at line [%d] code [%d / 0x%x]\n", i_file, i_line, error_code, error_code);
+      }
+
+      ia_signal_error();
    }
 
 #endif

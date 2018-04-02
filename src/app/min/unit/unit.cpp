@@ -437,7 +437,7 @@ public:
    std::shared_ptr<ux_font> recording_fnt;
    std::string recording_txt;
    glm::vec2 recording_txt_dim;
-   ping_pong_time_slider rec_txt_slider;
+   ping_pong_time_slider<float> rec_txt_slider;
 
 #endif
 

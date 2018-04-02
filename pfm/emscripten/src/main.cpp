@@ -195,10 +195,12 @@ umf_list emst_main::get_directory_listing(const std::string& idirectory, umf_lis
       key = "vera.ttf"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, ""));
       key = "3d-globe-bg.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "3d-globe-bg.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
-      key = "3d-globe-outline.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
-      key = "3d-globe-outline.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      //key = "3d-globe-outline.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      //key = "3d-globe-outline.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "basic_tex.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "basic_tex.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      key = "billboard.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      key = "billboard.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "c_o.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "c_o.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "fxaa.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
@@ -217,10 +219,14 @@ umf_list emst_main::get_directory_listing(const std::string& idirectory, umf_lis
       key = "hot-spot-lines.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "sky-box.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "sky-box.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      key = "sky-box-2.fsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
+      key = "sky-box-2.vsh"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders"));
       key = "v3f-t2f-c4f.frag"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders/freetype-gl"));
       key = "v3f-t2f-c4f.vert"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "shaders/freetype-gl"));
       key = "detail-tex.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex"));
+      key = "halo.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex"));
       key = "line.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex"));
+      key = "line-2.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex"));
       key = "trail.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex"));
       key = "skybx-negx.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex/skybx"));
       key = "skybx-negy.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex/skybx"));
@@ -228,6 +234,12 @@ umf_list emst_main::get_directory_listing(const std::string& idirectory, umf_lis
       key = "skybx-posx.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex/skybx"));
       key = "skybx-posy.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex/skybx"));
       key = "skybx-posz.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex/skybx"));
+      key = "skybx-2-negx.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex/skybx-2"));
+      key = "skybx-2-negy.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex/skybx-2"));
+      key = "skybx-2-negz.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex/skybx-2"));
+      key = "skybx-2-posx.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex/skybx-2"));
+      key = "skybx-2-posy.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex/skybx-2"));
+      key = "skybx-2-posz.png"; list[key] = pfm_file::get_inst(std::make_shared<emst_file_impl>(key, "tex/skybx-2"));
    }
 
    return iplist;

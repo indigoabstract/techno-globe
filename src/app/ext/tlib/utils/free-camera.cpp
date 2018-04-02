@@ -184,20 +184,20 @@ void free_camera::update_input(shared_ptr<iadp> idp)
             isAction = false;
          }
 
-         if (!isAction && !ke->is_repeated())
-         {
-            isAction = true;
+         //if (!isAction && !ke->is_repeated())
+         //{
+         //   isAction = true;
 
-            switch (ke->get_key())
-            {
-            case KEY_SPACE:
-            case KEY_F1:
-               break;
+         //   switch (ke->get_key())
+         //   {
+         //   case KEY_SPACE:
+         //   case KEY_F1:
+         //      break;
 
-            default:
-               isAction = false;
-            }
-         }
+         //   default:
+         //      isAction = false;
+         //   }
+         //}
 
          if (isAction)
          {

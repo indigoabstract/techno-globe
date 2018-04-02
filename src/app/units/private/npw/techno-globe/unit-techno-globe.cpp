@@ -1634,6 +1634,37 @@ namespace techno_globe_ns
             //globe[MP_WIREFRAME_MODE] = MV_WF_OVERLAY;
          }
 
+         // globe billboard
+         {
+            gfx_tex_params prm;
+
+            prm.wrap_s = prm.wrap_t = gfx_tex_params::e_twm_clamp_to_edge;
+            prm.max_anisotropy = 0.f;
+            prm.min_filter = gfx_tex_params::e_tf_linear_mipmap_linear;
+            prm.mag_filter = gfx_tex_params::e_tf_linear;
+            //prm.min_filter = gfx_tex_params::e_tf_linear;
+            //prm.mag_filter = gfx_tex_params::e_tf_linear;
+            //prm.gen_mipmaps = false;
+
+            globe_billboard_tex = gfx::tex::new_tex_2d("halo.png", &prm);
+            //globe_billboard_tex = gfx::tex::new_tex_2d("line-2.png", &prm);
+
+            globe_billboard = std::make_shared<gfx_billboard>();
+            gfx_billboard& vxo = *globe_billboard;
+            vxo[MP_SHADER_NAME] = "billboard";
+            vxo[MP_CULL_BACK] = false;
+            vxo[MP_CULL_FRONT] = false;
+            vxo[MP_DEPTH_WRITE] = false;
+            vxo[MP_DEPTH_TEST] = false;
+            vxo[MP_BLENDING] = MV_ADD;
+            vxo["u_v1_face_camera"] = 1.f;
+            //vxo["u_s2d_tex"] = "line-2.png";
+            vxo["u_s2d_tex"] = globe_billboard_tex->get_name();
+            //vxo[MP_WIREFRAME_MODE] = MV_WF_OVERLAY;
+            vxo.set_dimensions(1., 1.);
+            vxo.position = glm::vec3(0.f);
+         }
+
          // globe spikes
          {
             globe_spikes_vxo = std::make_shared<gfx_vxo>(vx_info("a_v3_position, a_v3_normal, a_v2_tex_coord"));
@@ -1644,7 +1675,7 @@ namespace techno_globe_ns
             spikes_vxo[MP_CULL_BACK] = false;
             spikes_vxo[MP_DEPTH_WRITE] = false;
             spikes_vxo[MP_DEPTH_TEST] = false;
-            spikes_vxo[MP_BLENDING] = MV_ALPHA;
+            spikes_vxo[MP_BLENDING] = MV_ADD;
          }
 
          // globe spike bases
@@ -1894,8 +1925,8 @@ namespace techno_globe_ns
          glm::vec3 globe_up(0, 1, 0);
          glm::vec3 spike_right(1, 0, 0);
          globe_border_dot_vx dot;
-         float spike_min_height = 2.f;
-         float spike_max_height = 10.f;
+         float spike_min_height = 3.f;
+         float spike_max_height = 15.f;
          float spike_base_min = 0.3f;
          float spike_base_max = 1.f;
          uint32 min_city_pop = 0xffffffff;
@@ -2017,6 +2048,8 @@ namespace techno_globe_ns
       std::shared_ptr<gfx_vpc_ring_sphere> globe_vxo;
       std::shared_ptr<gfx_rt> rt_inst;
       std::shared_ptr<gfx_quad_2d> globe_tex_quad;
+      std::shared_ptr<gfx_billboard> globe_billboard;
+      std::shared_ptr<gfx_tex> globe_billboard_tex;
 
       std::shared_ptr<gfx_vxo> globe_dots_vxo;
       std::vector<globe_regular_dot_vx> globe_dots_vertices;
@@ -2090,21 +2123,25 @@ namespace techno_globe_ns
 
          // skybox
          {
+            int skybox_idx = 0;
+            skybox_name = {"skybx", "skybx-2"};
+            skybox_sh_name = { "sky-box", "sky-box-2" };
+
             skybox = std::make_shared<gfx_box>();
             gfx_box& skb = *skybox;
             float s = persp_cam->far_clip_distance * 0.5f;
 
             skb.set_dimensions(s, s, s);
-            skb[MP_SHADER_NAME] = "sky-box";
-            skb["u_scm_tex"] = "skybx";
+            skb[MP_SHADER_NAME] = skybox_sh_name[skybox_idx];
+            skb["u_scm_tex"] = skybox_name[skybox_idx];
             skb[MP_CULL_BACK] = false;
             skb[MP_CULL_FRONT] = true;
          }
 
          // hot spot detector
          {
-            int tex_width = 512;
-            int tex_height = 256;
+            int tex_width = 256;
+            int tex_height = 128;
 
             hot_spot_dbg_quad = std::make_shared<gfx_quad_2d>();
 
@@ -2155,6 +2192,7 @@ namespace techno_globe_ns
          scene->attach(persp_cam);
          scene->attach(skybox);
 
+         scene->attach(rrb->globe_billboard);
          scene->attach(rrb->globe_dots_vxo);
          scene->attach(rrb->globe_borders_vxo);
 
@@ -2174,7 +2212,7 @@ namespace techno_globe_ns
 
          cam_end_pos = glm::vec3(-100.f, 0.f, -200.f) * 0.75f;
          cam_start_pos = cam_end_pos * 3.2f;
-         intro_duration = 5;
+         intro_duration = 9;
          reset_cam_pos();
 
          city_fnt = ux_font::new_inst(get_unit()->ux_cam->get_font());
@@ -2190,20 +2228,38 @@ namespace techno_globe_ns
 
       virtual void receive(shared_ptr<iadp> idp) override
       {
-         free_cam->update_input(idp);
-
          if (idp->is_type(touch_sym_evt::TOUCHSYM_EVT_TYPE))
          {
             shared_ptr<touch_sym_evt> ts = touch_sym_evt::as_touch_sym_evt(idp);
 
-            if (ts->get_type() == touch_sym_evt::TS_PRESSED)
+            switch (ts->get_type())
             {
+            case touch_sym_evt::TS_PRESSED:
                last_click = glm::vec2(ts->crt_state.te->points[0].x, ts->crt_state.te->points[0].y);
+               break;
+
+            case touch_sym_evt::TS_MOUSE_WHEEL:
+            {
+               shared_ptr<mouse_wheel_evt> mw = static_pointer_cast<mouse_wheel_evt>(ts);
+
+               glm::vec3 pos = free_cam->persp_cam->position() + free_cam->look_at_dir * free_cam->mw_speed_factor * float(mw->wheel_delta);
+               float center_dist = glm::length(pos);
+
+               if (center_dist > (rrb->globe_radius * 1.1f) && center_dist < (rrb->globe_radius * 2.2f))
+               {
+                  free_cam->persp_cam->position = pos;
+               }
+
+               ts->process();
+               break;
+            }
             }
          }
 
          if (!idp->is_processed())
          {
+            free_cam->update_input(idp);
+
             if (idp->is_type(key_evt::KEYEVT_EVT_TYPE))
             {
                shared_ptr<key_evt> ke = key_evt::as_key_evt(idp);
@@ -2232,6 +2288,15 @@ namespace techno_globe_ns
                      }
 #endif
 
+                     break;
+                  }
+
+                  case KEY_SPACE:
+                  {
+                     skybox_idx++;
+                     skybox_idx = (skybox_idx >= skybox_name.size()) ? 0 : skybox_idx;
+                     (*skybox)[MP_SHADER_NAME] = skybox_sh_name[skybox_idx];
+                     (*skybox)["u_scm_tex"] = skybox_name[skybox_idx];
                      break;
                   }
 
@@ -2351,6 +2416,11 @@ namespace techno_globe_ns
          hot_spot_connex->update();
          border_intensity_slider.update();
 
+         float cam_dist = glm::length(persp_cam->position());
+         float theta = glm::asin(rrb->globe_radius / cam_dist);
+         float cam_side_dist = cam_dist / glm::cos(theta);
+         float bb_side = 2.f * cam_side_dist * glm::sin(theta) * 1.25f;
+         rrb->globe_billboard->scaling = glm::vec3(bb_side, bb_side, 1.f);
          //persp_cam->draw_axes(globe_vxo->position, 5 * globe_radius, 1);
 
          mws_report_gfx_errs();
@@ -2364,8 +2434,8 @@ namespace techno_globe_ns
          {
             if (!gpu_readback_init)
             {
-               int tex_width = 512;
-               int tex_height = 256;
+               int tex_width = 256;
+               int tex_height = 128;
                gfx_tex_params prm;
 
                prm.wrap_s = prm.wrap_t = gfx_tex_params::e_twm_clamp_to_edge;
@@ -2557,9 +2627,12 @@ namespace techno_globe_ns
 
       uint32 frame_idx;
       uint32 start_time;
-      ping_pong_time_slider border_intensity_slider;
+      ping_pong_time_slider<float> border_intensity_slider;
 
       std::shared_ptr<gfx_box> skybox;
+      int skybox_idx;
+      std::vector<std::string> skybox_name;
+      std::vector<std::string> skybox_sh_name;
 
       // hot spots
       std::shared_ptr<gfx_tex> hot_spot_tex;
@@ -2575,7 +2648,7 @@ namespace techno_globe_ns
       std::shared_ptr<ux_font> city_fnt;
       std::string city_txt;
       glm::vec2 city_txt_dim;
-      const uint32 PBO_COUNT = 3;
+      const uint32 PBO_COUNT = 2;
       std::vector<gfx_uint> pbo_id_vect;
       int pbo_index;
       std::vector<uint32> pbo_data;
@@ -2588,7 +2661,7 @@ namespace techno_globe_ns
       glm::vec3 cam_start_pos;
       glm::vec3 cam_end_pos;
       float intro_duration;
-      basic_time_slider cam_slider;
+      basic_time_slider<double> cam_slider;
       std::shared_ptr<hot_spot_connector> hot_spot_connex;
 
       std::shared_ptr<master_resource_builder> mrb;

@@ -20,7 +20,7 @@ set_target_properties(app PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_D
 set_target_properties(app PROPERTIES OUTPUT_NAME "appplex")
 #set_target_properties(app PROPERTIES LINK_FLAGS "--shell-file ${PROJECT_SOURCE_DIR}/pfm/emscripten/test_html5_fullscreen.html -s USE_WEBGL2=1 -s WASM=1 --preload-file ${PROJECT_SOURCE_DIR}/pfm/emscripten/src/res@/")
 #set_target_properties(app PROPERTIES LINK_FLAGS "--shell-file ${PROJECT_SOURCE_DIR}/pfm/emscripten/test_html5_fullscreen.html -s USE_WEBGL2=1 -s ALLOW_MEMORY_GROWTH=1 --preload-file ${PROJECT_SOURCE_DIR}/pfm/emscripten/src/res@/")
-set_target_properties(app PROPERTIES LINK_FLAGS "--shell-file ${PROJECT_SOURCE_DIR}/pfm/emscripten/appplex-src.html -s USE_WEBGL2=1 -s WASM=1 -s TOTAL_MEMORY=100663296 --preload-file ${PROJECT_SOURCE_DIR}/pfm/emscripten/src/res@/")
+set_target_properties(app PROPERTIES LINK_FLAGS "--shell-file ${PROJECT_SOURCE_DIR}/pfm/emscripten/appplex-src.html -s USE_WEBGL2=1 -s WASM=0 -s TOTAL_MEMORY=100663296 --preload-file ${PROJECT_SOURCE_DIR}/pfm/emscripten/src/res@/")
 #set_target_properties(app PROPERTIES LINK_FLAGS "--shell-file ${PROJECT_SOURCE_DIR}/pfm/emscripten/test_html5_fullscreen.html -s USE_WEBGL2=1 -s BINARYEN_METHOD='native-wasm,asmjs' -s TOTAL_MEMORY=67108864 --preload-file ${PROJECT_SOURCE_DIR}/pfm/emscripten/src/res@/")
 
 # Adds logic to INSTALL.vcproj to copy app.exe to destination directory
